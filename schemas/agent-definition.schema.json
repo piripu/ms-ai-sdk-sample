@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/piripu/ms-ai-sdk-sample/main/schemas/agent-definition.schema.json",
+  "title": "Ovi Agent Definition",
+  "description": "Declarative definition of an Ovi agent operator, authorable in JSON or YAML and loaded by AgentDefinitionSerializer (Ovi.Sdk.Agents). YAML documents are bridged onto the JSON object model, so this one schema governs both formats. Note: the schema is stricter than the runtime loader (which ignores unknown properties) so that typos are caught at authoring time.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema for editor tooling. Ignored by the runtime loader."
+    },
+    "id": {
+      "$ref": "#/$defs/operatorId",
+      "description": "The agent's operator identity: 'organization/name@semver' for published agents, or './name[@semver]' for built-ins (only built-ins may omit the version). Organization and name are case-insensitive slugs.",
+      "examples": ["acme/researcher@1.0.0", "./triage-agent"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The agent's human-readable display name.",
+      "examples": ["Researcher"]
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "What the agent is for. Shown to humans and usable in tool/agent listings."
+    },
+    "instructions": {
+      "type": ["string", "null"],
+      "description": "The system instructions that steer the agent. Sent as the system message on every run."
+    },
+    "tools": {
+      "type": "array",
+      "description": "The tools the agent may call, resolved against a tool catalog at load time. Each entry is either a bare operator-id string or an object with 'id' and tool-specific 'options'.",
+      "items": {
+        "$ref": "#/$defs/toolReference"
+      },
+      "default": []
+    }
+  },
+  "required": ["id", "name"],
+  "additionalProperties": false,
+  "$defs": {
+    "operatorId": {
+      "type": "string",
+      "description": "An Ovi operator id. Published form: 'organization/name@semver' (version required). Built-in form: './name' with an optional '@semver'. Slugs start and end with an ASCII letter or digit and may contain '.', '_' and '-' in between; the version is full semver (prerelease and build metadata allowed).",
+      "pattern": "^(?:\\./[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?(?:@(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?)?|[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?@(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?)$",
+      "examples": [
+        "acme/web-search@1.2.0",
+        "acme/web-search@2.0.0-beta.1",
+        "./manual-trigger",
+        "./schedule-trigger@0.3.1"
+      ]
+    },
+    "toolReference": {
+      "description": "A reference to a tool. Shorthand: a bare operator-id string. Object form: 'id' plus optional free-form 'options' for tool-specific configuration.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/operatorId"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/operatorId",
+              "description": "The referenced tool's operator id."
+            },
+            "options": {
+              "type": ["object", "null"],
+              "description": "Free-form, tool-specific configuration passed through to the tool."
+            }
+          },
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        "./echo",
+        { "id": "acme/web-search@2.0.0", "options": { "maxResults": 5 } }
+      ]
+    }
+  }
+}

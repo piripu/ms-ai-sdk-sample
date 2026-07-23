@@ -18,4 +18,10 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="../../schemas/agent-definition.schema.json" CopyToOutputDirectory="PreserveNewest" LinkBase="schemas" />
+    <None Include="../../samples/agents/*.*" CopyToOutputDirectory="PreserveNewest" LinkBase="samples/agents" />
+  </ItemGroup>
+
+
 </Project>

@@ -128,6 +128,25 @@ Console.WriteLine(response.Text);
 The chat client resolves per execution: fixed on the operator → `AgentWorkflowExecutionContext.ChatClient`
 → `IChatClient` in `RuntimeServices`.
 
+#### Definition schema
+
+Agent definitions have a JSON Schema at [`schemas/agent-definition.schema.json`](schemas/agent-definition.schema.json)
+that governs both formats (YAML is bridged onto the JSON object model before parsing). Wire it up for
+editor validation and autocomplete:
+
+```yaml
+# yaml-language-server: $schema=../../schemas/agent-definition.schema.json
+id: acme/researcher@1.0.0
+```
+
+```json
+{ "$schema": "../../schemas/agent-definition.schema.json", "id": "acme/researcher@1.0.0" }
+```
+
+Working examples live in [`samples/agents/`](samples/agents). The schema is deliberately stricter
+than the runtime loader (which skips unknown properties), so typos are caught while authoring;
+tests keep the schema's id pattern in lockstep with `OperatorId`.
+
 `MultipartHttpChatClient` is the SDK's custom client skeleton: it HTTP-POSTs the conversation as
 `MultipartFormDataContent` to an arbitrary endpoint. **It is intentionally incomplete** — the
 request side works; response parsing (`ParseResponse`), streaming, and binary parts await a real
