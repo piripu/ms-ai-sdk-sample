@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ovi.Sdk.Agents/Ovi.Sdk.Agents.csproj" />
+    <Project Path="src/Ovi.Sdk.Operators/Ovi.Sdk.Operators.csproj" />
+    <Project Path="src/Ovi.Sdk.Packaging/Ovi.Sdk.Packaging.csproj" />
+    <Project Path="src/Ovi.Sdk.Tools/Ovi.Sdk.Tools.csproj" />
+    <Project Path="src/Ovi.Sdk.Triggers/Ovi.Sdk.Triggers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ovi.Sdk.Tests/Ovi.Sdk.Tests.csproj" />
+  </Folder>
+</Solution>

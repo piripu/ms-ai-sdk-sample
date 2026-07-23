@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Core contracts of the Ovi workflow SDK: operator (node) abstractions, operator identity, execution context, and serializable workflow state.</Description>
+  </PropertyGroup>
+
+</Project>
