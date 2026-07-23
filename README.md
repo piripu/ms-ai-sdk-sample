@@ -12,53 +12,53 @@ ships.
 
 | Project | What it holds |
 |---|---|
-| `Ovi.Sdk.Operators` | The core: `Operator<TInput, TOutput>` (a node), operator identity (`OperatorId`), `WorkflowExecutionContext` + serializable state stores. No dependencies. |
+| `Ovi.Sdk.Nodes` | The core: `Node<TInput, TOutput>`, node identity (`NodeId`), `WorkflowExecutionContext` + serializable state stores. No dependencies. |
 | `Ovi.Sdk.Tools` | `ITool` — Ovi identity around a Microsoft.Extensions.AI `AIFunction`. `DelegateTool` (from a .NET delegate), `AIFunctionTool` (wrap any `AIFunction`; the future MCP bridge), `ToolCatalog`. |
-| `Ovi.Sdk.Agents` | `AgentOperator` (an operator with tool connections), YAML/JSON `AgentDefinition`s, `AgentWorkflowExecutionContext` (chat client + chat history), and the intentionally incomplete `MultipartHttpChatClient`. |
+| `Ovi.Sdk.Agents` | `AgentNode` (a node with tool connections), YAML/JSON `AgentDefinition`s, `AgentWorkflowExecutionContext` (chat client + chat history), and the intentionally incomplete `MultipartHttpChatClient`. |
 | `Ovi.Sdk.Triggers` | Workflow starting points: chat (webhook-shaped), webhook, schedule (interval or cron), manual — all manually fireable for testing. |
-| `Ovi.Sdk.Packaging` | The `.ovipkg` format: a zip with a `manifest.json`, carrying operators/agents/tools/triggers. Authoring (`OviPackageBuilder`) and reading (`OviPackage`). |
+| `Ovi.Sdk.Packaging` | The `.ovipkg` format: a zip with a `manifest.json`, carrying nodes/agents/tools/triggers. Authoring (`OviPackageBuilder`) and reading (`OviPackage`). |
 
 Dependency layering (arrows = "references"):
 
 ```
-Tools ──▶ Operators ◀── Triggers
+Tools ──▶ Nodes ◀── Triggers
   ▲            ▲
-  └── Agents ──┘         Packaging ──▶ Operators
+  └── Agents ──┘         Packaging ──▶ Nodes
 ```
 
 ## Core concepts
 
-### Operators (nodes)
+### Nodes
 
-An **operator** is the atomic unit of a workflow. It defines its own input and output types and
+A **node** is the atomic unit of a workflow. It defines its own input and output types and
 executes against a shared context:
 
 ```csharp
-sealed class UppercaseOperator() : Operator<string, string>(
-    new OperatorDescriptor(OperatorId.BuiltIn("uppercase"), "Uppercase", "Uppercases the input text."))
+sealed class UppercaseNode() : Node<string, string>(
+    new NodeDescriptor(NodeId.BuiltIn("uppercase"), "Uppercase", "Uppercases the input text."))
 {
     public override ValueTask<string> ExecuteAsync(string input, WorkflowExecutionContext context)
         => ValueTask.FromResult(input.ToUpperInvariant());
 }
 ```
 
-Operators are **atomic**: any instance can be executed (and unit tested) on its own — no engine:
+Nodes are **atomic**: any instance can be executed (and unit tested) on its own — no engine:
 
 ```csharp
 var context = WorkflowExecutionContext.CreateBuilder().Build();
-var result = await new UppercaseOperator().ExecuteAsync("hello", context); // "HELLO"
+var result = await new UppercaseNode().ExecuteAsync("hello", context); // "HELLO"
 ```
 
-Every operator also has an untyped `IOperator` surface (`ExecuteAsync(object?, context)`) that a
+Every node also has an untyped `INode` surface (`ExecuteAsync(object?, context)`) that a
 workflow runtime uses to wire heterogeneous nodes together.
 
-### Operator identity
+### Node identity
 
-`OperatorId` is a domain concept: `organization/name@semver`, where built-ins use `.` as the
+`NodeId` is a domain concept: `organization/name@semver`, where built-ins use `.` as the
 organization and may leave the version implicit:
 
 ```
-acme/web-search@1.2.0     published operator (version required)
+acme/web-search@1.2.0     published node (version required)
 ./manual-trigger          built-in, implicit version
 ./schedule-trigger@0.3.1  built-in, explicit version
 ```
@@ -72,10 +72,10 @@ All execution flows through `WorkflowExecutionContext`:
 
 | Member | Meaning |
 |---|---|
-| `RuntimeServices` (`IServiceProvider`) | Services the runtime exposes to operators. |
+| `RuntimeServices` (`IServiceProvider`) | Services the runtime exposes to nodes. |
 | `WorkflowState` (`IStateStore`) | Shared per-run state. |
 | `GlobalState` (`IStateStore`) | Persisted across invocations, runtime-wide. |
-| `InstanceState` (`IStateStore`) | Persisted across invocations, scoped to the operator's package instance. |
+| `InstanceState` (`IStateStore`) | Persisted across invocations, scoped to the node's package instance. |
 | `CancellationToken` | Run cancellation. |
 | `Workflow` (`WorkflowInfo`) | Workflow id/name, run id, start time. |
 | `Properties` | Non-serialized extension bag ("others as necessary"). |
@@ -90,7 +90,7 @@ land there too.
 
 ### Agents
 
-An **agent is an operator** (`AgentRequest` → `AgentResponse`) with extra connections: tools now,
+An **agent is a node** (`AgentRequest` → `AgentResponse`) with extra connections: tools now,
 memory later. Agents build on **Microsoft.Extensions.AI** — any `IChatClient` works (an Ollama
 client such as OllamaSharp's, a cloud provider's, or a custom one), and tools surface to the model
 as `AIFunction`s. When an agent has tools, the chat client is wrapped with
@@ -119,13 +119,13 @@ var catalog = new ToolCatalog
     DelegateTool.Create("./echo", "Echo", "Echoes text back.", (string text) => text),
     DelegateTool.Create("acme/web-search@2.0.0", "Web Search", "Searches the web.", Search),
 };
-var agent = AgentOperator.FromDefinition(definition, catalog, chatClient);
+var agent = AgentNode.FromDefinition(definition, catalog, chatClient);
 
 var response = await agent.ExecuteAsync("What is Ovi?", context);
 Console.WriteLine(response.Text);
 ```
 
-The chat client resolves per execution: fixed on the operator → `AgentWorkflowExecutionContext.ChatClient`
+The chat client resolves per execution: fixed on the node → `AgentWorkflowExecutionContext.ChatClient`
 → `IChatClient` in `RuntimeServices`.
 
 #### Definition schema
@@ -145,7 +145,7 @@ id: acme/researcher@1.0.0
 
 Working examples live in [`samples/agents/`](samples/agents). The schema is deliberately stricter
 than the runtime loader (which skips unknown properties), so typos are caught while authoring;
-tests keep the schema's id pattern in lockstep with `OperatorId`.
+tests keep the schema's id pattern in lockstep with `NodeId`.
 
 `MultipartHttpChatClient` is the SDK's custom client skeleton: it HTTP-POSTs the conversation as
 `MultipartFormDataContent` to an arbitrary endpoint. **It is intentionally incomplete** — the
@@ -154,7 +154,7 @@ wire contract.
 
 ### Tools
 
-A tool is Ovi identity (`OperatorDescriptor`) around an `AIFunction`. The id's slug name becomes the
+A tool is Ovi identity (`NodeDescriptor`) around an `AIFunction`. The id's slug name becomes the
 LLM-facing function name; the description becomes the function description.
 
 MCP is a planned extension, not a rework: MCP client tools *are* `AIFunction`s, so they'll arrive by
@@ -162,35 +162,35 @@ wrapping them in `AIFunctionTool` — agents won't change.
 
 ### Triggers
 
-A **trigger is the operator that starts a workflow**: its input is the external event payload, its
+A **trigger is the node that starts a workflow**: its input is the external event payload, its
 output enters the workflow. All triggers can be fired manually (`FireAsync`) for tests and "run
 now" tooling.
 
 | Trigger | Payload | Notes |
 |---|---|---|
-| `ChatTriggerOperator` | `ChatTriggerPayload` | A chat trigger is a specialized webhook — `FromWebhook()` lifts a JSON body `{message, sessionId, userId}`. |
-| `WebhookTriggerOperator` | `WebhookRequest` | Transport-agnostic HTTP request snapshot. |
-| `ScheduleTriggerOperator` | `ScheduleTick` | `Schedule.FromInterval(TimeSpan)` or `Schedule.FromCron("*/15 * * * *")` (Cronos-validated; `GetNextOccurrence` for planning). |
-| `ManualTriggerOperator<T>` | any | Pass-through, for tests and on-demand runs. |
+| `ChatTriggerNode` | `ChatTriggerPayload` | A chat trigger is a specialized webhook — `FromWebhook()` lifts a JSON body `{message, sessionId, userId}`. |
+| `WebhookTriggerNode` | `WebhookRequest` | Transport-agnostic HTTP request snapshot. |
+| `ScheduleTriggerNode` | `ScheduleTick` | `Schedule.FromInterval(TimeSpan)` or `Schedule.FromCron("*/15 * * * *")` (Cronos-validated; `GetNextOccurrence` for planning). |
+| `ManualTriggerNode<T>` | any | Pass-through, for tests and on-demand runs. |
 
 ```csharp
-var trigger = new ScheduleTriggerOperator(Schedule.FromCron("0 9 * * MON-FRI"));
+var trigger = new ScheduleTriggerNode(Schedule.FromCron("0 9 * * MON-FRI"));
 var tick = await trigger.FireAsync(ScheduleTick.Manual(), context); // manual firing for tests
 ```
 
 ### Packaging (`.ovipkg`)
 
 An `.ovipkg` is **a zip file with its extension renamed**, plus a root `manifest.json` describing
-the operators inside. Package ids share the operator identity domain.
+the nodes inside. Package ids share the node identity domain.
 
 ```csharp
 new OviPackageBuilder("acme/starter-pack@0.1.0", "Starter Pack")
     .AddTextFile("agents/researcher.yaml", AgentDefinitionSerializer.ToYaml(definition))
-    .AddOperator(new PackagedOperatorEntry(definition.ToDescriptor(), PackagedOperatorKind.Agent, "agents/researcher.yaml"))
+    .AddNode(new PackagedNodeEntry(definition.ToDescriptor(), PackagedNodeKind.Agent, "agents/researcher.yaml"))
     .Save("starter-pack.ovipkg");
 
 using var package = OviPackage.Open("starter-pack.ovipkg");
-var manifest = package.Manifest; // packageId, name, operators [{id, name, kind, path}]
+var manifest = package.Manifest; // packageId, name, nodes [{id, name, kind, path}]
 var yaml = package.ReadAllText("agents/researcher.yaml");
 ```
 
@@ -204,7 +204,7 @@ dotnet build
 dotnet test
 ```
 
-Requires the .NET 10 SDK (see `global.json`). The test suite (70 tests) doubles as usage
+Requires the .NET 10 SDK (see `global.json`). The test suite (83 tests) doubles as usage
 documentation for every area above.
 
 ## Deliberately deferred

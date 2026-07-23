@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Agent contracts for the Ovi workflow SDK: agent operators built on Microsoft.Extensions.AI (IChatClient + AIFunction tools), YAML/JSON agent definitions, and the agent-flavored workflow execution context.</Description>
+    <Description>Agent contracts for the Ovi workflow SDK: agent nodes built on Microsoft.Extensions.AI (IChatClient + AIFunction tools), YAML/JSON agent definitions, and the agent-flavored workflow execution context.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Ovi.Sdk.Operators/Ovi.Sdk.Operators.csproj" />
+    <ProjectReference Include="../Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
     <ProjectReference Include="../Ovi.Sdk.Tools/Ovi.Sdk.Tools.csproj" />
   </ItemGroup>
 

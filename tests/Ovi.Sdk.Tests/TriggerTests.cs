@@ -1,4 +1,4 @@
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Ovi.Sdk.Triggers;
 using Xunit;
 
@@ -11,7 +11,7 @@ public class TriggerTests
     [Fact]
     public async Task Manual_triggers_pass_their_payload_through()
     {
-        var trigger = new ManualTriggerOperator<string>();
+        var trigger = new ManualTriggerNode<string>();
 
         var output = await trigger.FireAsync("start!", NewContext());
 
@@ -22,7 +22,7 @@ public class TriggerTests
     [Fact]
     public async Task Webhook_triggers_deliver_the_request_into_the_workflow()
     {
-        var trigger = new WebhookTriggerOperator();
+        var trigger = new WebhookTriggerNode();
         var request = new WebhookRequest
         {
             Path = "/hooks/orders",
@@ -46,21 +46,21 @@ public class TriggerTests
             ContentType = "application/json",
         };
 
-        var payload = ChatTriggerOperator.FromWebhook(webhook);
+        var payload = ChatTriggerNode.FromWebhook(webhook);
 
         Assert.Equal("Hello!", payload.Message);
         Assert.Equal("s-1", payload.SessionId);
         Assert.Equal("u-9", payload.UserId);
 
-        var output = await new ChatTriggerOperator().FireAsync(payload, NewContext());
+        var output = await new ChatTriggerNode().FireAsync(payload, NewContext());
         Assert.Same(payload, output);
     }
 
     [Fact]
     public void Chat_triggers_reject_bodies_that_are_not_chat_messages()
     {
-        Assert.Throws<FormatException>(() => ChatTriggerOperator.FromWebhook(new WebhookRequest { Body = "42" }));
-        Assert.Throws<FormatException>(() => ChatTriggerOperator.FromWebhook(new WebhookRequest { Body = """{"note": "no message"}""" }));
+        Assert.Throws<FormatException>(() => ChatTriggerNode.FromWebhook(new WebhookRequest { Body = "42" }));
+        Assert.Throws<FormatException>(() => ChatTriggerNode.FromWebhook(new WebhookRequest { Body = """{"note": "no message"}""" }));
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public class TriggerTests
     [Fact]
     public async Task Schedule_triggers_can_be_fired_manually()
     {
-        var trigger = new ScheduleTriggerOperator(Schedule.FromInterval(TimeSpan.FromHours(1)));
+        var trigger = new ScheduleTriggerNode(Schedule.FromInterval(TimeSpan.FromHours(1)));
         var tick = ScheduleTick.Manual();
 
         var output = await trigger.FireAsync(tick, NewContext());
@@ -104,14 +104,14 @@ public class TriggerTests
     }
 
     [Fact]
-    public void Triggers_are_operators_with_built_in_ids()
+    public void Triggers_are_nodes_with_built_in_ids()
     {
-        Assert.IsAssignableFrom<ITriggerOperator>(new ManualTriggerOperator<string>());
-        Assert.IsAssignableFrom<IOperator>(new WebhookTriggerOperator());
+        Assert.IsAssignableFrom<ITriggerNode>(new ManualTriggerNode<string>());
+        Assert.IsAssignableFrom<INode>(new WebhookTriggerNode());
 
-        Assert.True(ManualTriggerOperator<string>.DefaultDescriptor.Id.IsBuiltIn);
-        Assert.True(WebhookTriggerOperator.DefaultDescriptor.Id.IsBuiltIn);
-        Assert.True(ChatTriggerOperator.DefaultDescriptor.Id.IsBuiltIn);
-        Assert.True(ScheduleTriggerOperator.DefaultDescriptor.Id.IsBuiltIn);
+        Assert.True(ManualTriggerNode<string>.DefaultDescriptor.Id.IsBuiltIn);
+        Assert.True(WebhookTriggerNode.DefaultDescriptor.Id.IsBuiltIn);
+        Assert.True(ChatTriggerNode.DefaultDescriptor.Id.IsBuiltIn);
+        Assert.True(ScheduleTriggerNode.DefaultDescriptor.Id.IsBuiltIn);
     }
 }

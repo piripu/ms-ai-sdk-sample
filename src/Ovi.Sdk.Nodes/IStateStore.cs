@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Nodes;
 
-namespace Ovi.Sdk.Operators;
+namespace Ovi.Sdk.Nodes;
 
 /// <summary>
 /// A string-keyed bag of JSON-serializable state. Implementations must guarantee that everything the

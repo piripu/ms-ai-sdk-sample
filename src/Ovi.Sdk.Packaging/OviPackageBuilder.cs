@@ -1,30 +1,30 @@
 using System.IO.Compression;
 using System.Text;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Packaging;
 
 /// <summary>
-/// Authors <c>.ovipkg</c> packages: collect operator entries and their asset files, then
+/// Authors <c>.ovipkg</c> packages: collect node entries and their asset files, then
 /// <see cref="Save(string)"/> writes the zip container with its <c>manifest.json</c>.
 /// </summary>
 /// <example>
 /// <code>
 /// var builder = new OviPackageBuilder("acme/research-pack@1.0.0", "Research Pack")
 ///     .AddTextFile("agents/researcher.yaml", agentYaml)
-///     .AddOperator(new PackagedOperatorEntry(agentDescriptor, PackagedOperatorKind.Agent, "agents/researcher.yaml"));
+///     .AddNode(new PackagedNodeEntry(agentDescriptor, PackagedNodeKind.Agent, "agents/researcher.yaml"));
 /// builder.Save("research-pack.ovipkg");
 /// </code>
 /// </example>
 public sealed class OviPackageBuilder
 {
-    private readonly List<PackagedOperatorEntry> _operators = [];
+    private readonly List<PackagedNodeEntry> _nodes = [];
     private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
-    private readonly OperatorId _packageId;
+    private readonly NodeId _packageId;
     private readonly string _name;
     private readonly string? _description;
 
-    public OviPackageBuilder(OperatorId packageId, string name, string? description = null)
+    public OviPackageBuilder(NodeId packageId, string name, string? description = null)
     {
         ArgumentNullException.ThrowIfNull(packageId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -34,11 +34,11 @@ public sealed class OviPackageBuilder
         _description = description;
     }
 
-    /// <summary>Declares an operator carried by this package.</summary>
-    public OviPackageBuilder AddOperator(PackagedOperatorEntry entry)
+    /// <summary>Declares a node carried by this package.</summary>
+    public OviPackageBuilder AddNode(PackagedNodeEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        _operators.Add(entry with { Path = entry.Path is null ? null : PackagePath.Normalize(entry.Path) });
+        _nodes.Add(entry with { Path = entry.Path is null ? null : PackagePath.Normalize(entry.Path) });
         return this;
     }
 
@@ -68,7 +68,7 @@ public sealed class OviPackageBuilder
     /// <summary>The manifest as it would be written by <see cref="Save(Stream)"/>.</summary>
     public OviPackageManifest BuildManifest() => new(_packageId, _name, _description)
     {
-        Operators = [.. _operators],
+        Nodes = [.. _nodes],
     };
 
     /// <summary>Writes the package to a stream as a zip archive with a root <c>manifest.json</c>.</summary>
@@ -76,14 +76,14 @@ public sealed class OviPackageBuilder
     {
         ArgumentNullException.ThrowIfNull(destination);
 
-        var missing = _operators
+        var missing = _nodes
             .Where(entry => entry.Path is not null && !_files.ContainsKey(entry.Path))
             .Select(entry => $"{entry.Id} -> {entry.Path}")
             .ToArray();
         if (missing.Length > 0)
         {
             throw new InvalidOperationException(
-                $"Operator entries reference files that were not added to the package: {string.Join(", ", missing)}.");
+                $"Node entries reference files that were not added to the package: {string.Join(", ", missing)}.");
         }
 
         using var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true);

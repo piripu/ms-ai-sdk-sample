@@ -1,4 +1,4 @@
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Triggers;
 
@@ -6,15 +6,15 @@ namespace Ovi.Sdk.Triggers;
 /// The simplest trigger: starts a workflow on demand and passes the caller-supplied payload through
 /// unchanged. Useful as the entry point for tests and for "run workflow now" tooling.
 /// </summary>
-public class ManualTriggerOperator<TPayload> : TriggerOperator<TPayload, TPayload>
+public class ManualTriggerNode<TPayload> : TriggerNode<TPayload, TPayload>
 {
-    public ManualTriggerOperator(OperatorDescriptor? descriptor = null)
+    public ManualTriggerNode(NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)
     {
     }
 
-    public static OperatorDescriptor DefaultDescriptor { get; } = new(
-        OperatorId.BuiltIn("manual-trigger"),
+    public static NodeDescriptor DefaultDescriptor { get; } = new(
+        NodeId.BuiltIn("manual-trigger"),
         "Manual Trigger",
         "Starts a workflow on demand with a caller-supplied payload.");
 

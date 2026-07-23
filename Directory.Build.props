@@ -16,7 +16,7 @@
     <Authors>Ovi</Authors>
     <Product>Ovi SDK</Product>
     <RepositoryUrl>https://github.com/piripu/ms-ai-sdk-sample</RepositoryUrl>
-    <PackageTags>workflow;agents;operators;tools;triggers;ai</PackageTags>
+    <PackageTags>workflow;agents;nodes;tools;triggers;ai</PackageTags>
   </PropertyGroup>
 
 </Project>

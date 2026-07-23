@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Nodes;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Triggers;
 
@@ -40,15 +40,15 @@ public sealed record ChatTriggerPayload
 /// request (<c>{"message": ..., "sessionId": ..., "userId": ...}</c>) into a
 /// <see cref="ChatTriggerPayload"/>.
 /// </summary>
-public class ChatTriggerOperator : TriggerOperator<ChatTriggerPayload, ChatTriggerPayload>
+public class ChatTriggerNode : TriggerNode<ChatTriggerPayload, ChatTriggerPayload>
 {
-    public ChatTriggerOperator(OperatorDescriptor? descriptor = null)
+    public ChatTriggerNode(NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)
     {
     }
 
-    public static OperatorDescriptor DefaultDescriptor { get; } = new(
-        OperatorId.BuiltIn("chat-trigger"),
+    public static NodeDescriptor DefaultDescriptor { get; } = new(
+        NodeId.BuiltIn("chat-trigger"),
         "Chat Trigger",
         "Starts a workflow from an incoming chat message; a chat trigger is a specialized webhook.");
 

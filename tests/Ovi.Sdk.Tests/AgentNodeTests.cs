@@ -1,22 +1,22 @@
 using Microsoft.Extensions.AI;
 using Ovi.Sdk.Agents;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Ovi.Sdk.Tests.Support;
 using Ovi.Sdk.Tools;
 using Xunit;
 
 namespace Ovi.Sdk.Tests;
 
-public class AgentOperatorTests
+public class AgentNodeTests
 {
-    private static OperatorDescriptor Descriptor { get; } = new(
-        OperatorId.Parse("acme/assistant@1.0.0"), "Assistant", "A helpful assistant.");
+    private static NodeDescriptor Descriptor { get; } = new(
+        NodeId.Parse("acme/assistant@1.0.0"), "Assistant", "A helpful assistant.");
 
     [Fact]
     public async Task Sends_instructions_and_prompt_to_the_chat_client()
     {
         var chatClient = FakeChatClient.RespondingWith("Hi there!");
-        var agent = new AgentOperator(Descriptor, "You are terse.", chatClient: chatClient);
+        var agent = new AgentNode(Descriptor, "You are terse.", chatClient: chatClient);
         var context = WorkflowExecutionContext.CreateBuilder().Build();
 
         var response = await agent.ExecuteAsync("Hello?", context);
@@ -35,7 +35,7 @@ public class AgentOperatorTests
     public async Task Resolves_the_chat_client_from_runtime_services()
     {
         var chatClient = FakeChatClient.RespondingWith("From services.");
-        var agent = new AgentOperator(Descriptor);
+        var agent = new AgentNode(Descriptor);
         var context = WorkflowExecutionContext.CreateBuilder()
             .WithService<IChatClient>(chatClient)
             .Build();
@@ -48,7 +48,7 @@ public class AgentOperatorTests
     [Fact]
     public async Task Fails_clearly_when_no_chat_client_is_available()
     {
-        var agent = new AgentOperator(Descriptor);
+        var agent = new AgentNode(Descriptor);
         var context = WorkflowExecutionContext.CreateBuilder().Build();
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -59,7 +59,7 @@ public class AgentOperatorTests
     [Fact]
     public async Task Empty_requests_are_rejected()
     {
-        var agent = new AgentOperator(Descriptor, chatClient: FakeChatClient.RespondingWith("unused"));
+        var agent = new AgentNode(Descriptor, chatClient: FakeChatClient.RespondingWith("unused"));
         var context = WorkflowExecutionContext.CreateBuilder().Build();
 
         await Assert.ThrowsAsync<ArgumentException>(
@@ -71,7 +71,7 @@ public class AgentOperatorTests
     {
         var chatClient = FakeChatClient.RespondingWith("done");
         var echoTool = DelegateTool.Create("./echo", "Echo", "Echoes text back.", (string text) => text);
-        var agent = new AgentOperator(Descriptor, tools: [echoTool], chatClient: chatClient, autoInvokeFunctions: false);
+        var agent = new AgentNode(Descriptor, tools: [echoTool], chatClient: chatClient, autoInvokeFunctions: false);
 
         await agent.ExecuteAsync("run", WorkflowExecutionContext.CreateBuilder().Build());
 
@@ -98,7 +98,7 @@ public class AgentOperatorTests
             new ChatResponse(toolCallTurn),
             new ChatResponse(new ChatMessage(ChatRole.Assistant, "The sum is 3.")));
 
-        var agent = new AgentOperator(Descriptor, tools: [addTool], chatClient: chatClient);
+        var agent = new AgentNode(Descriptor, tools: [addTool], chatClient: chatClient);
         var response = await agent.ExecuteAsync("What is 1 + 2?", WorkflowExecutionContext.CreateBuilder().Build());
 
         Assert.True(invoked);
@@ -113,7 +113,7 @@ public class AgentOperatorTests
     public async Task Maintains_chat_history_through_the_agent_context()
     {
         var chatClient = FakeChatClient.RespondingWith("First answer.", "Second answer.");
-        var agent = new AgentOperator(Descriptor, "Be helpful.");
+        var agent = new AgentNode(Descriptor, "Be helpful.");
         var context = new AgentWorkflowExecutionContext(
             WorkflowExecutionContext.CreateBuilder().Build(),
             chatClient);
@@ -135,10 +135,10 @@ public class AgentOperatorTests
     public void From_definition_resolves_tools_from_the_catalog()
     {
         var definition = new AgentDefinition(
-            OperatorId.Parse("acme/researcher@1.0.0"),
+            NodeId.Parse("acme/researcher@1.0.0"),
             "Researcher",
             instructions: "Research.",
-            tools: [new ToolReference(OperatorId.Parse("acme/web-search@2.0.0"))]);
+            tools: [new ToolReference(NodeId.Parse("acme/web-search@2.0.0"))]);
 
         // The catalog holds a newer version; resolution falls back to the version-insensitive match.
         var catalog = new ToolCatalog
@@ -146,7 +146,7 @@ public class AgentOperatorTests
             DelegateTool.Create("acme/web-search@2.1.0", "Web Search", "Searches the web.", (string query) => query),
         };
 
-        var agent = AgentOperator.FromDefinition(definition, catalog);
+        var agent = AgentNode.FromDefinition(definition, catalog);
 
         Assert.Equal(definition.Id, agent.Id);
         Assert.Equal("Research.", agent.Instructions);
@@ -157,14 +157,14 @@ public class AgentOperatorTests
     public void From_definition_fails_on_unresolvable_tools()
     {
         var definition = new AgentDefinition(
-            OperatorId.Parse("acme/researcher@1.0.0"),
+            NodeId.Parse("acme/researcher@1.0.0"),
             "Researcher",
-            tools: [new ToolReference(OperatorId.Parse("acme/missing@1.0.0"))]);
+            tools: [new ToolReference(NodeId.Parse("acme/missing@1.0.0"))]);
 
         var withEmptyCatalog = Assert.Throws<InvalidOperationException>(
-            () => AgentOperator.FromDefinition(definition, new ToolCatalog()));
+            () => AgentNode.FromDefinition(definition, new ToolCatalog()));
         Assert.Contains("acme/missing@1.0.0", withEmptyCatalog.Message);
 
-        Assert.Throws<InvalidOperationException>(() => AgentOperator.FromDefinition(definition));
+        Assert.Throws<InvalidOperationException>(() => AgentNode.FromDefinition(definition));
     }
 }

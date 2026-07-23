@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>The .ovipkg package format for the Ovi workflow SDK: a zip container with a manifest describing the operators (agents, tools, triggers) it carries. This project covers authoring and reading packages; loading them into a runtime comes later.</Description>
+    <Description>The .ovipkg package format for the Ovi workflow SDK: a zip container with a manifest describing the nodes (agents, tools, triggers) it carries. This project covers authoring and reading packages; loading them into a runtime comes later.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Ovi.Sdk.Operators/Ovi.Sdk.Operators.csproj" />
+    <ProjectReference Include="../Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
   </ItemGroup>
 
 </Project>

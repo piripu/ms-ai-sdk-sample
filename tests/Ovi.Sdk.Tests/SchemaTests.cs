@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Ovi.Sdk.Agents;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Xunit;
 
 namespace Ovi.Sdk.Tests;
@@ -46,13 +46,13 @@ public class SchemaTests
     [InlineData("acme/-tool@1.0.0", false)]
     [InlineData("acme/tool@01.0.0", false)]
     [InlineData("acme/a b@1.0.0", false)]
-    public void The_schema_operator_id_pattern_agrees_with_OperatorId(string candidate, bool expected)
+    public void The_schema_node_id_pattern_agrees_with_NodeId(string candidate, bool expected)
     {
         var schema = JsonNode.Parse(File.ReadAllText(SchemaPath))!;
-        var pattern = schema["$defs"]!["operatorId"]!["pattern"]!.GetValue<string>();
+        var pattern = schema["$defs"]!["nodeId"]!["pattern"]!.GetValue<string>();
 
         Assert.Equal(expected, Regex.IsMatch(candidate, pattern));
-        Assert.Equal(expected, OperatorId.TryParse(candidate, out _));
+        Assert.Equal(expected, NodeId.TryParse(candidate, out _));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class SchemaTests
     {
         var definition = AgentDefinitionSerializer.Load(SamplePath("researcher.yaml"));
 
-        Assert.Equal(OperatorId.Parse("acme/researcher@1.0.0"), definition.Id);
+        Assert.Equal(NodeId.Parse("acme/researcher@1.0.0"), definition.Id);
         Assert.Equal("Researcher", definition.Name);
         Assert.Equal(2, definition.Tools.Count);
         Assert.Equal(5, definition.Tools[1].Options!["maxResults"]!.GetValue<int>());
@@ -72,7 +72,7 @@ public class SchemaTests
         // The $schema property in the sample is tooling metadata; the loader ignores it.
         var definition = AgentDefinitionSerializer.Load(SamplePath("support-triage.json"));
 
-        Assert.Equal(OperatorId.Parse("acme/support-triage@0.1.0"), definition.Id);
+        Assert.Equal(NodeId.Parse("acme/support-triage@0.1.0"), definition.Id);
         Assert.Equal("Support Triage", definition.Name);
         Assert.Equal(2, definition.Tools.Count);
         Assert.Equal("kb-search", definition.Tools[1].Id.Name);
@@ -83,7 +83,7 @@ public class SchemaTests
     public void Sample_ids_match_the_schema_pattern()
     {
         var schema = JsonNode.Parse(File.ReadAllText(SchemaPath))!;
-        var pattern = schema["$defs"]!["operatorId"]!["pattern"]!.GetValue<string>();
+        var pattern = schema["$defs"]!["nodeId"]!["pattern"]!.GetValue<string>();
 
         foreach (var file in new[] { "researcher.yaml", "support-triage.json" })
         {

@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Ovi.Sdk.Agents;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Xunit;
 
 namespace Ovi.Sdk.Tests;
@@ -39,7 +39,7 @@ public class AgentDefinitionTests
     {
         var definition = AgentDefinitionSerializer.FromYaml(Yaml);
 
-        Assert.Equal(OperatorId.Parse("acme/researcher@1.0.0"), definition.Id);
+        Assert.Equal(NodeId.Parse("acme/researcher@1.0.0"), definition.Id);
         Assert.Equal("Researcher", definition.Name);
         Assert.Equal("Answers questions using its tools.", definition.Description);
         Assert.Contains("careful research assistant", definition.Instructions);
@@ -47,7 +47,7 @@ public class AgentDefinitionTests
         Assert.Equal(2, definition.Tools.Count);
         Assert.True(definition.Tools[0].Id.IsBuiltIn);
         Assert.Equal("echo", definition.Tools[0].Id.Name);
-        Assert.Equal(OperatorId.Parse("acme/web-search@2.0.0"), definition.Tools[1].Id);
+        Assert.Equal(NodeId.Parse("acme/web-search@2.0.0"), definition.Tools[1].Id);
         Assert.Equal(5, definition.Tools[1].Options!["maxResults"]!.GetValue<int>());
     }
 

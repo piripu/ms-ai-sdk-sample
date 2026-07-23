@@ -1,16 +1,16 @@
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Xunit;
 
 namespace Ovi.Sdk.Tests;
 
 /// <summary>
-/// Demonstrates that operators are atomic: any single operator instance can be executed and asserted
+/// Demonstrates that nodes are atomic: any single node instance can be executed and asserted
 /// on with a hand-built <see cref="WorkflowExecutionContext"/> — no workflow engine involved.
 /// </summary>
-public class OperatorAtomicityTests
+public class NodeAtomicityTests
 {
-    private sealed class UppercaseOperator() : Operator<string, string>(
-        new OperatorDescriptor(OperatorId.BuiltIn("uppercase"), "Uppercase", "Uppercases the input text."))
+    private sealed class UppercaseNode() : Node<string, string>(
+        new NodeDescriptor(NodeId.BuiltIn("uppercase"), "Uppercase", "Uppercases the input text."))
     {
         public override ValueTask<string> ExecuteAsync(string input, WorkflowExecutionContext context)
         {
@@ -20,18 +20,18 @@ public class OperatorAtomicityTests
         }
     }
 
-    private sealed class DoubleOperator() : Operator<int, int>(
-        new OperatorDescriptor(OperatorId.BuiltIn("double"), "Double", "Doubles a number."))
+    private sealed class DoubleNode() : Node<int, int>(
+        new NodeDescriptor(NodeId.BuiltIn("double"), "Double", "Doubles a number."))
     {
         public override ValueTask<int> ExecuteAsync(int input, WorkflowExecutionContext context) =>
             ValueTask.FromResult(input * 2);
     }
 
     [Fact]
-    public async Task An_operator_can_be_executed_on_its_own()
+    public async Task An_node_can_be_executed_on_its_own()
     {
         var context = WorkflowExecutionContext.CreateBuilder().Build();
-        var op = new UppercaseOperator();
+        var op = new UppercaseNode();
 
         var result = await op.ExecuteAsync("hello", context);
 
@@ -43,7 +43,7 @@ public class OperatorAtomicityTests
     public async Task The_untyped_surface_bridges_to_the_typed_implementation()
     {
         var context = WorkflowExecutionContext.CreateBuilder().Build();
-        IOperator op = new UppercaseOperator();
+        INode op = new UppercaseNode();
 
         Assert.Equal(typeof(string), op.InputType);
         Assert.Equal(typeof(string), op.OutputType);
@@ -54,14 +54,14 @@ public class OperatorAtomicityTests
     public async Task The_untyped_surface_rejects_wrong_input_types()
     {
         var context = WorkflowExecutionContext.CreateBuilder().Build();
-        IOperator stringOperator = new UppercaseOperator();
-        IOperator intOperator = new DoubleOperator();
+        INode stringNode = new UppercaseNode();
+        INode intNode = new DoubleNode();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => stringOperator.ExecuteAsync(42, context).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => stringNode.ExecuteAsync(42, context).AsTask());
 
         // Null can only be rejected when the input type is a non-nullable value type; reference-type
         // nullability is erased at runtime.
-        await Assert.ThrowsAsync<ArgumentNullException>(() => intOperator.ExecuteAsync(null, context).AsTask());
+        await Assert.ThrowsAsync<ArgumentNullException>(() => intNode.ExecuteAsync(null, context).AsTask());
     }
 
     [Fact]

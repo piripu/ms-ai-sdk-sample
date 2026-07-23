@@ -1,7 +1,7 @@
-namespace Ovi.Sdk.Operators;
+namespace Ovi.Sdk.Nodes;
 
 /// <summary>
-/// The shared context every operator executes against. It carries the runtime's services, the three
+/// The shared context every node executes against. It carries the runtime's services, the three
 /// scopes of serializable state, cancellation, and information about the current workflow run.
 /// </summary>
 /// <remarks>
@@ -9,7 +9,7 @@ namespace Ovi.Sdk.Operators;
 /// <list type="bullet">
 /// <item><see cref="WorkflowState"/> — shared per-run state; lives for a single workflow run.</item>
 /// <item><see cref="GlobalState"/> — persisted across runs, shared by the whole runtime.</item>
-/// <item><see cref="InstanceState"/> — persisted across runs, scoped to the operator's package instance.</item>
+/// <item><see cref="InstanceState"/> — persisted across runs, scoped to the node's package instance.</item>
 /// </list>
 /// Specialized runtimes derive richer contexts from this type (e.g.
 /// <c>AgentWorkflowExecutionContext</c> in <c>Ovi.Sdk.Agents</c>, which adds the run's chat client and
@@ -56,16 +56,16 @@ public class WorkflowExecutionContext
     /// <summary>Information about the workflow and the current run.</summary>
     public WorkflowInfo Workflow { get; }
 
-    /// <summary>The runtime's service provider, used to resolve services operators depend on.</summary>
+    /// <summary>The runtime's service provider, used to resolve services nodes depend on.</summary>
     public IServiceProvider RuntimeServices { get; }
 
-    /// <summary>Serializable state shared by all operators within the current run.</summary>
+    /// <summary>Serializable state shared by all nodes within the current run.</summary>
     public IStateStore WorkflowState { get; }
 
     /// <summary>Serializable state persisted across runs and shared runtime-wide.</summary>
     public IStateStore GlobalState { get; }
 
-    /// <summary>Serializable state persisted across runs, scoped to the operator's package instance.</summary>
+    /// <summary>Serializable state persisted across runs, scoped to the node's package instance.</summary>
     public IStateStore InstanceState { get; }
 
     /// <summary>Signals cancellation of the current run.</summary>
@@ -86,7 +86,7 @@ public class WorkflowExecutionContext
         ?? throw new InvalidOperationException($"No service of type {typeof(T)} is registered in RuntimeServices.");
 
     /// <summary>
-    /// Starts a builder for constructing contexts by hand — the entry point for testing operators
+    /// Starts a builder for constructing contexts by hand — the entry point for testing nodes
     /// atomically, outside any workflow engine.
     /// </summary>
     public static WorkflowExecutionContextBuilder CreateBuilder() => new();

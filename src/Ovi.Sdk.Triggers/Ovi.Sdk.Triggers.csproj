@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Trigger contracts for the Ovi workflow SDK: the operators that start a workflow — chat (webhook-shaped), schedule (interval or cron), and manual — all fireable by hand for testing.</Description>
+    <Description>Trigger contracts for the Ovi workflow SDK: the nodes that start a workflow — chat (webhook-shaped), schedule (interval or cron), and manual — all fireable by hand for testing.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Ovi.Sdk.Operators/Ovi.Sdk.Operators.csproj" />
+    <ProjectReference Include="../Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
   </ItemGroup>
 
   <ItemGroup>

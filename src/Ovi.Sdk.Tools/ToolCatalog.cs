@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Tools;
 
@@ -16,7 +16,7 @@ public interface IToolCatalog
 /// </summary>
 public sealed class ToolCatalog : IToolCatalog, IEnumerable<ITool>
 {
-    private readonly Dictionary<OperatorId, ITool> _tools = [];
+    private readonly Dictionary<NodeId, ITool> _tools = [];
 
     /// <summary>Adds (or replaces) a tool, keyed by its id.</summary>
     public ToolCatalog Add(ITool tool)
@@ -35,7 +35,7 @@ public sealed class ToolCatalog : IToolCatalog, IEnumerable<ITool>
             return true;
         }
 
-        tool = _tools.Values.FirstOrDefault(candidate => candidate.Descriptor.Id.IsSameOperator(reference.Id));
+        tool = _tools.Values.FirstOrDefault(candidate => candidate.Descriptor.Id.IsSameNode(reference.Id));
         return tool is not null;
     }
 

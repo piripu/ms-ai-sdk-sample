@@ -12,7 +12,7 @@ public enum ScheduleKind
 }
 
 /// <summary>
-/// When a <see cref="ScheduleTriggerOperator"/> fires: either a fixed interval or a cron expression.
+/// When a <see cref="ScheduleTriggerNode"/> fires: either a fixed interval or a cron expression.
 /// Cron expressions are validated at construction; <see cref="GetNextOccurrence"/> lets both the
 /// runtime and tests compute upcoming fire times without any scheduler infrastructure.
 /// </summary>

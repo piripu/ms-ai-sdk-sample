@@ -1,8 +1,8 @@
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Triggers;
 
-/// <summary>One firing of a <see cref="ScheduleTriggerOperator"/>.</summary>
+/// <summary>One firing of a <see cref="ScheduleTriggerNode"/>.</summary>
 public sealed record ScheduleTick
 {
     /// <summary>When the schedule intended this firing to happen.</summary>
@@ -29,17 +29,17 @@ public sealed record ScheduleTick
 /// each firing delivers. Like every trigger it can be fired manually, e.g. with
 /// <see cref="ScheduleTick.Manual"/>.
 /// </summary>
-public class ScheduleTriggerOperator : TriggerOperator<ScheduleTick, ScheduleTick>
+public class ScheduleTriggerNode : TriggerNode<ScheduleTick, ScheduleTick>
 {
-    public ScheduleTriggerOperator(Schedule schedule, OperatorDescriptor? descriptor = null)
+    public ScheduleTriggerNode(Schedule schedule, NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)
     {
         ArgumentNullException.ThrowIfNull(schedule);
         Schedule = schedule;
     }
 
-    public static OperatorDescriptor DefaultDescriptor { get; } = new(
-        OperatorId.BuiltIn("schedule-trigger"),
+    public static NodeDescriptor DefaultDescriptor { get; } = new(
+        NodeId.BuiltIn("schedule-trigger"),
         "Schedule Trigger",
         "Starts a workflow on a schedule: a fixed interval or a cron expression.");
 

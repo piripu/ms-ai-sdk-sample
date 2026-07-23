@@ -1,4 +1,4 @@
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Xunit;
 
 namespace Ovi.Sdk.Tests;
