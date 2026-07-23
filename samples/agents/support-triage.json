@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/agent-definition.schema.json",
+  "id": "acme/support-triage@0.1.0",
+  "name": "Support Triage",
+  "description": "Classifies incoming support chats and drafts a first response.",
+  "instructions": "Classify the user's message as a bug report, billing question, or feature request, then draft a short, friendly first response. Escalate anything you cannot classify.",
+  "tools": [
+    "./echo",
+    {
+      "id": "acme/kb-search@1.4.2",
+      "options": {
+        "topK": 3
+      }
+    }
+  ]
+}

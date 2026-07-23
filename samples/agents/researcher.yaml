@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../schemas/agent-definition.schema.json
+id: acme/researcher@1.0.0
+name: Researcher
+description: Answers questions using its tools.
+instructions: |
+  You are a careful research assistant.
+  Cite your sources.
+tools:
+  - ./echo
+  - id: acme/web-search@2.0.0
+    options:
+      maxResults: 5

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Tool contracts for the Ovi workflow SDK, bridging Ovi operator identity to Microsoft.Extensions.AI AIFunction so tools can be attached to agents (and, in the future, exposed over MCP).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ovi.Sdk.Operators/Ovi.Sdk.Operators.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+  </ItemGroup>
+
+</Project>
