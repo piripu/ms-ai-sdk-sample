@@ -19,7 +19,7 @@ and add `~/.dotnet` to `PATH`.
 
 | Path | What it is | External deps |
 |---|---|---|
-| `src/Ovi.Sdk.Nodes` | Core contracts: `INode`/`INode<TIn,TOut>`, `Node<,>`, `DelegateNode`, `NodeId`, `WorkflowExecutionContext` + features, state stores | **none — keep it that way** |
+| `src/Ovi.Sdk.Nodes` | Core contracts: `INode`/`INode<TIn,TOut>`, `Node<,>`, `DelegateNode`, `NodeId`, `Result<T>` + errors, `WorkflowExecutionContext` + features, state stores | **Microsoft.Extensions.*.Abstractions only** |
 | `src/Ovi.Sdk.Tools` | `ITool`, sealed `Tool` (`FromDelegate`/`FromAIFunction`), `ToolCatalog` | Microsoft.Extensions.AI |
 | `src/Ovi.Sdk.Agents` | `AgentNode`, `AgentDefinition` (YAML/JSON), `AgentChatFeature`, `MultipartHttpChatClient` | Microsoft.Extensions.AI, YamlDotNet |
 | `src/Ovi.Sdk.Triggers` | Chat/webhook/schedule/manual trigger nodes | Cronos |
@@ -35,7 +35,9 @@ and add `~/.dotnet` to `PATH`.
    (`Ovi.Runtime.*`). Deliberate incompleteness is a feature: `MultipartHttpChatClient.ParseResponse`
    and `IPythonScriptEngine` stay unimplemented until their wire contracts are decided. Do not
    "finish" them.
-2. **`Ovi.Sdk.Nodes` never gains a package reference.** It is the de-facto abstractions package.
+2. **`Ovi.Sdk.Nodes` references only `Microsoft.Extensions.*.Abstractions` packages** (today:
+   Logging.Abstractions). Never an implementation package, never a third-party dependency — it is
+   the de-facto abstractions package.
 3. **Composition over inheritance.**
    - Run capabilities are typed **features** on `WorkflowExecutionContext`
      (`SetFeature`/`GetFeature`); never subclass the context to add a capability (subclasses like
@@ -57,12 +59,22 @@ and add `~/.dotnet` to `PATH`.
    network. Add tests in that style; test names are underscored sentences
    (`Chat_triggers_normalize_webhook_requests`).
 7. **Resolution idiom** for external dependencies of a node (chat client, script engine):
-   fixed-on-node → context feature → `RuntimeServices` → throw a clear error naming all three.
+   fixed-on-node → context feature → `RuntimeServices` → a `ResolutionError` failure result
+   naming all three (with a fix-it hint).
 8. **One JSON pipeline.** `OviJson` carries the conventions (camelCase, case-insensitive, camel
    enum strings); YAML is bridged onto the JSON node model (`YamlJsonBridge`) so both formats parse
    identically. New declarative formats must reuse this pipeline.
 9. **Microsoft.Extensions.AI alignment.** Tools surface as `AIFunction`; agents accept any
    `IChatClient`; MCP arrives later via `Tool.FromAIFunction` — never invent a parallel abstraction.
+10. **Expected failures are results.** Execution APIs return `Result<T>` with the closed error set
+    (`ValidationError` / `ResolutionError` / `ExecutionError`; stable codes). Exceptions are only
+    for programmer errors (argument validation) and cancellation; the untyped `INode` bridge
+    converts mismatches and unhandled throws into failures. Don't grow the error set casually —
+    it is shaped for a future discriminated union.
+11. **Logging is built in and silent.** Resolve loggers via `context.GetLogger<T>()` (NullLogger
+    fallback), emit events through source-generated `[LoggerMessage]` partials (Debug for normal
+    flow, Warning for failure results, Error for exceptions), and keep execution tracing in the
+    `WithLogging` decorator — never chatty base-class logging.
 
 ## Conventions
 

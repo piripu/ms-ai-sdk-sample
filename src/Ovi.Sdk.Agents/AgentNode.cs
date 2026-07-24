@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Ovi.Sdk.Nodes;
 using Ovi.Sdk.Tools;
 
@@ -13,9 +14,10 @@ namespace Ovi.Sdk.Agents;
 /// The chat client is resolved per execution, in priority order: the client fixed on this node,
 /// then the context's <see cref="AgentChatFeature"/> (attached directly or via
 /// <see cref="AgentWorkflowExecutionContext"/>), then an <see cref="IChatClient"/> registered in
-/// <see cref="WorkflowExecutionContext.RuntimeServices"/>. Any <see cref="IChatClient"/> works: an
-/// Ollama client, a cloud provider's client, or the SDK's own (intentionally incomplete)
-/// <see cref="MultipartHttpChatClient"/>.
+/// <see cref="WorkflowExecutionContext.RuntimeServices"/> — a missing client is a
+/// <see cref="ResolutionError"/> failure, a chat-client exception an <see cref="ExecutionError"/>.
+/// Any <see cref="IChatClient"/> works: an Ollama client, a cloud provider's client, or the SDK's
+/// own (intentionally incomplete) <see cref="MultipartHttpChatClient"/>.
 /// </remarks>
 public sealed class AgentNode : Node<AgentRequest, AgentResponse>
 {
@@ -50,9 +52,10 @@ public sealed class AgentNode : Node<AgentRequest, AgentResponse>
 
     /// <summary>
     /// Materializes an agent from its declarative <see cref="AgentDefinition"/>, resolving tool
-    /// references through <paramref name="toolCatalog"/>.
+    /// references through <paramref name="toolCatalog"/>; an unresolvable tool yields a
+    /// <see cref="ResolutionError"/> failure.
     /// </summary>
-    public static AgentNode FromDefinition(
+    public static Result<AgentNode> FromDefinition(
         AgentDefinition definition,
         IToolCatalog? toolCatalog = null,
         IChatClient? chatClient = null,
@@ -65,9 +68,10 @@ public sealed class AgentNode : Node<AgentRequest, AgentResponse>
         {
             if (toolCatalog is null || !toolCatalog.TryResolve(reference, out var tool))
             {
-                throw new InvalidOperationException(
+                return new ResolutionError(
                     $"Tool '{reference.Id}' referenced by agent '{definition.Id}' could not be resolved"
-                    + (toolCatalog is null ? " because no tool catalog was provided." : "."));
+                    + (toolCatalog is null ? " because no tool catalog was provided." : "."),
+                    hint: "Register the tool in the IToolCatalog passed to FromDefinition.");
             }
 
             tools.Add(tool);
@@ -76,19 +80,33 @@ public sealed class AgentNode : Node<AgentRequest, AgentResponse>
         return new AgentNode(definition.ToDescriptor(), definition.Instructions, tools, chatClient, autoInvokeFunctions);
     }
 
-    public override async ValueTask<AgentResponse> ExecuteAsync(AgentRequest input, WorkflowExecutionContext context)
+    public override async ValueTask<Result<AgentResponse>> ExecuteAsync(AgentRequest input, WorkflowExecutionContext context)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(context);
 
+        var logger = context.GetLogger<AgentNode>();
         var chat = context.GetFeature<AgentChatFeature>();
-        var client = ChatClient
-            ?? chat?.ChatClient
-            ?? context.GetService<IChatClient>()
-            ?? throw new InvalidOperationException(
-                $"Agent '{Id}' has no chat client. Provide one on the node, attach an AgentChatFeature to the context (or use AgentWorkflowExecutionContext), or register an IChatClient in RuntimeServices.");
+
+        var (client, clientSource) =
+            ChatClient is not null ? (ChatClient, "node")
+            : chat?.ChatClient is { } featureClient ? (featureClient, "feature")
+            : context.GetService<IChatClient>() is { } serviceClient ? ((IChatClient?)serviceClient, "services")
+            : (null, "none");
+
+        if (client is null)
+        {
+            AgentLog.NoChatClient(logger, Id);
+            return new ResolutionError(
+                $"Agent '{Id}' has no chat client.",
+                hint: "Provide one on the node, attach an AgentChatFeature to the context (or use AgentWorkflowExecutionContext), or register an IChatClient in RuntimeServices.");
+        }
 
         var requestMessages = BuildRequestMessages(input);
+        if (requestMessages.Count == 0)
+        {
+            return new ValidationError("The agent request must contain a prompt or at least one message.");
+        }
 
         var messages = new List<ChatMessage>();
         if (!string.IsNullOrWhiteSpace(Instructions))
@@ -117,7 +135,22 @@ public sealed class AgentNode : Node<AgentRequest, AgentResponse>
             }
         }
 
-        var response = await client.GetResponseAsync(messages, options, context.CancellationToken).ConfigureAwait(false);
+        AgentLog.Sending(logger, Id, messages.Count, Tools.Count, clientSource);
+
+        ChatResponse response;
+        try
+        {
+            response = await client.GetResponseAsync(messages, options, context.CancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            AgentLog.ChatFailed(logger, exception, Id);
+            return ExecutionError.FromException(exception);
+        }
 
         if (chat is not null)
         {
@@ -132,6 +165,7 @@ public sealed class AgentNode : Node<AgentRequest, AgentResponse>
             }
         }
 
+        AgentLog.Received(logger, Id, response.Text.Length);
         return new AgentResponse(response);
     }
 
@@ -148,13 +182,27 @@ public sealed class AgentNode : Node<AgentRequest, AgentResponse>
             messages.Add(new ChatMessage(ChatRole.User, input.Prompt));
         }
 
-        return messages.Count > 0
-            ? messages
-            : throw new ArgumentException("The agent request must contain a prompt or at least one message.", nameof(input));
+        return messages;
     }
 
     private static IChatClient EnsureFunctionInvocation(IChatClient client, WorkflowExecutionContext context) =>
         client.GetService(typeof(FunctionInvokingChatClient)) is not null
             ? client
             : client.AsBuilder().UseFunctionInvocation().Build(context.RuntimeServices);
+}
+
+/// <summary>Source-generated log messages for agent execution.</summary>
+internal static partial class AgentLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Agent {NodeId} sending {MessageCount} messages with {ToolCount} tools (chat client from {ClientSource})")]
+    public static partial void Sending(ILogger logger, NodeId nodeId, int messageCount, int toolCount, string clientSource);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Debug, Message = "Agent {NodeId} received a response of {ResponseLength} characters")]
+    public static partial void Received(ILogger logger, NodeId nodeId, int responseLength);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Agent {NodeId} has no chat client")]
+    public static partial void NoChatClient(ILogger logger, NodeId nodeId);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Error, Message = "Chat client call failed for agent {NodeId}")]
+    public static partial void ChatFailed(ILogger logger, Exception exception, NodeId nodeId);
 }

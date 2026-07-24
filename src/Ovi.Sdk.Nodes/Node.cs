@@ -11,6 +11,9 @@ namespace Ovi.Sdk.Nodes;
 /// Nodes are atomic: an instance can be executed (and therefore unit tested) on its own by
 /// calling <see cref="ExecuteAsync(TInput, WorkflowExecutionContext)"/> with a context built via
 /// <see cref="WorkflowExecutionContext.CreateBuilder"/> — no workflow engine required.
+/// The untyped bridge converts mismatched inputs to <see cref="ValidationError"/> failures and
+/// unhandled exceptions to <see cref="ExecutionError"/> failures (logged through the context), so
+/// a runtime driving heterogeneous nodes never has to guard the call with try/catch.
 /// </remarks>
 /// <typeparam name="TInput">The input the node consumes.</typeparam>
 /// <typeparam name="TOutput">The output the node produces.</typeparam>
@@ -40,25 +43,45 @@ public abstract class Node<TInput, TOutput> : INode<TInput, TOutput>
     /// <inheritdoc />
     public Type OutputType => typeof(TOutput);
 
-    /// <summary>Executes the node against the shared workflow execution context.</summary>
-    public abstract ValueTask<TOutput> ExecuteAsync(TInput input, WorkflowExecutionContext context);
+    /// <inheritdoc />
+    public abstract ValueTask<Result<TOutput>> ExecuteAsync(TInput input, WorkflowExecutionContext context);
 
-    async ValueTask<object?> INode.ExecuteAsync(object? input, WorkflowExecutionContext context)
+    async ValueTask<Result<object?>> INode.ExecuteAsync(object? input, WorkflowExecutionContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var typedInput = input switch
+        TInput typedInput;
+        switch (input)
         {
-            TInput typed => typed,
-            null when default(TInput) is null => default(TInput)!,
-            null => throw new ArgumentNullException(
-                nameof(input),
-                $"Node '{Id}' requires a non-null input of type {typeof(TInput)}."),
-            _ => throw new ArgumentException(
-                $"Node '{Id}' expects input of type {typeof(TInput)}, but received {input.GetType()}.",
-                nameof(input)),
-        };
+            case TInput typed:
+                typedInput = typed;
+                break;
+            case null when default(TInput) is null:
+                typedInput = default!;
+                break;
+            case null:
+                return new ValidationError(
+                    $"Node '{Id}' requires a non-null input of type {typeof(TInput)}.");
+            default:
+                return new ValidationError(
+                    $"Node '{Id}' expects input of type {typeof(TInput)}, but received {input.GetType()}.");
+        }
 
-        return await ExecuteAsync(typedInput, context).ConfigureAwait(false);
+        try
+        {
+            var result = await ExecuteAsync(typedInput, context).ConfigureAwait(false);
+            return result.IsSuccess
+                ? Result<object?>.Success(result.Value)
+                : Result<object?>.Failure(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // cancellation stays exceptional — it is not a node failure
+        }
+        catch (Exception exception)
+        {
+            NodeLog.UnhandledException(context.GetLogger(GetType().FullName ?? nameof(Node)), exception, Id);
+            return ExecutionError.FromException(exception);
+        }
     }
 }

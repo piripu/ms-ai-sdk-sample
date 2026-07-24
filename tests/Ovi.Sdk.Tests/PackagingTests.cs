@@ -45,7 +45,7 @@ public class PackagingTests
             Assert.Equal(definition.Id, entry.Id);
 
             Assert.True(package.HasEntry("agents/researcher.yaml"));
-            var loaded = AgentDefinitionSerializer.FromYaml(package.ReadAllText("agents/researcher.yaml"));
+            var loaded = AgentDefinitionSerializer.FromYaml(package.ReadAllText("agents/researcher.yaml")).Value;
             Assert.Equal(definition.Id, loaded.Id);
             Assert.Equal(definition.Instructions, loaded.Instructions);
 

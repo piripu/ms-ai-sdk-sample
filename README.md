@@ -39,8 +39,8 @@ executes against a shared context:
 sealed class UppercaseNode() : Node<string, string>(
     new NodeDescriptor(NodeId.BuiltIn("uppercase"), "Uppercase", "Uppercases the input text."))
 {
-    public override ValueTask<string> ExecuteAsync(string input, WorkflowExecutionContext context)
-        => ValueTask.FromResult(input.ToUpperInvariant());
+    public override ValueTask<Result<string>> ExecuteAsync(string input, WorkflowExecutionContext context)
+        => ValueTask.FromResult(Result<string>.Success(input.ToUpperInvariant()));
 }
 ```
 
@@ -48,7 +48,7 @@ Nodes are **atomic**: any instance can be executed (and unit tested) on its own 
 
 ```csharp
 var context = WorkflowExecutionContext.CreateBuilder().Build();
-var result = await new UppercaseNode().ExecuteAsync("hello", context); // "HELLO"
+var result = await new UppercaseNode().ExecuteAsync("hello", context); // result.Value == "HELLO"
 ```
 
 The typed contract is `INode<TIn, TOut>` (with `Node<TIn, TOut>` as an optional convenience base),
@@ -101,6 +101,23 @@ or `WithFeature` on the builder) instead of context subclassing. The chat capabi
 as thin sugar that attaches it. Future capabilities (memory) are additional features, so they stack
 freely on one context.
 
+### Errors, results, and logging
+
+Public **execution** APIs return `Result<T>` instead of throwing: a node run is either
+`Success(value)` or `Failure(error)`, where errors form a closed, DU-migration-ready set —
+`ValidationError`, `ResolutionError` (with a fix-it hint), `ExecutionError` (wrapping the causing
+exception). Exceptions remain reserved for programmer errors (bad arguments) and cancellation. The
+untyped `INode` bridge converts mismatched inputs and unhandled exceptions into failures, so a
+runtime never guards node calls with try/catch. The in-house `Result<T>` mirrors
+CSharpFunctionalExtensions ergonomics (`Match`/`Map`/`Bind`, implicit conversions) without coupling
+the SDK's contracts to a third-party package.
+
+Logging is built in and silent by default: `context.GetLogger<T>()` resolves an `ILoggerFactory`
+from `RuntimeServices` (no-op without one), components emit source-generated Debug/Warning events
+(chat-client resolution, script-engine dispatch, definition loads, trigger fires), and execution
+tracing is a decorator — `node.WithLogging()` logs start, success with duration, failure results,
+and thrown exceptions.
+
 ### Agents
 
 An **agent is a node** (`AgentRequest` → `AgentResponse`) with extra connections: tools now,
@@ -132,10 +149,10 @@ var catalog = new ToolCatalog
     Tool.FromDelegate("./echo", "Echo", "Echoes text back.", (string text) => text),
     Tool.FromDelegate("acme/web-search@2.0.0", "Web Search", "Searches the web.", Search),
 };
-var agent = AgentNode.FromDefinition(definition, catalog, chatClient);
+var agent = AgentNode.FromDefinition(definition, catalog, chatClient).Value;
 
-var response = await agent.ExecuteAsync("What is Ovi?", context);
-Console.WriteLine(response.Text);
+var result = await agent.ExecuteAsync("What is Ovi?", context);
+Console.WriteLine(result.Match(response => response.Text, error => $"failed — {error}"));
 ```
 
 The chat client resolves per execution: fixed on the node → the context's `AgentChatFeature`
@@ -188,7 +205,7 @@ now" tooling.
 
 ```csharp
 var trigger = new ScheduleTriggerNode(Schedule.FromCron("0 9 * * MON-FRI"));
-var tick = await trigger.FireAsync(ScheduleTick.Manual(), context); // manual firing for tests
+var tick = (await trigger.FireAsync(ScheduleTick.Manual(), context)).Value; // manual firing for tests
 ```
 
 ### Scripting (Python)

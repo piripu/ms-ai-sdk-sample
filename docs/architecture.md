@@ -28,7 +28,9 @@ schedulers, engines, persistence, loading — lands in future runtime packages r
 
 ### Dependency policy
 
-- `Ovi.Sdk.Nodes` never gains a package reference.
+- `Ovi.Sdk.Nodes` references only `Microsoft.Extensions.*.Abstractions` packages (today:
+  `Microsoft.Extensions.Logging.Abstractions`) — never implementation packages or third-party
+  dependencies.
 - Per-concept packages keep dependency granularity: a node author takes `Nodes` (no external
   deps), a trigger author adds Cronos, only tool/agent authors take Microsoft.Extensions.AI.
 - Deliberate incompleteness is part of the design: `MultipartHttpChatClient.ParseResponse` (no wire
@@ -100,10 +102,47 @@ When a node needs an external collaborator, resolution is always, in order:
 1. the instance fixed on the node (constructor),
 2. the context feature (e.g. `AgentChatFeature.ChatClient`),
 3. `RuntimeServices`,
-4. a clear `InvalidOperationException` naming all three options.
+4. a `ResolutionError` failure result naming all three options.
 
 `AgentNode` (chat client) and `PythonScriptNode` (script engine) both follow it; new node types
-with external needs must too.
+with external needs must too. A resolution that comes up empty is not an exception — it is a
+`ResolutionError` failure result carrying that same guidance as its hint.
+
+### Errors and results
+
+Execution APIs (`ExecuteAsync`, `FireAsync`, `AgentNode.FromDefinition`,
+`ChatTriggerNode.FromWebhook`, `AgentDefinitionSerializer` loads) return `Result<T>`: exactly one of
+`Success(value)` or `Failure(error)`. The error set is closed and DU-ready — `ValidationError`
+(bad input/definition, with parser detail), `ResolutionError` (missing collaborator, with a fix-it
+hint), `ExecutionError` (a collaborator or node body threw; carries the exception). Design intent:
+
+- **Expected failures are values**, so runtimes branch on them (`Match`, `IsFailure`, error codes)
+  instead of catching exceptions across a graph of heterogeneous nodes.
+- **Exceptions remain** for programmer errors (argument validation), cancellation
+  (`OperationCanceledException` always propagates), and external contracts the SDK cannot change
+  (`IChatClient` — agents translate its exceptions into `ExecutionError`).
+- The untyped `INode` bridge converts input-type mismatches to `ValidationError` and unhandled
+  exceptions to `ExecutionError`, logging the latter.
+- `Result<T>` is deliberately naive and in-house: two states, `Match`/`Map`/`Bind`, implicit
+  conversions from `T` and `Error`. It mirrors CSharpFunctionalExtensions ergonomics without
+  putting a third-party type into every public contract, and maps 1:1 onto a future C#
+  discriminated union.
+
+### Logging
+
+`Microsoft.Extensions.Logging.Abstractions` is the one permitted reference in `Ovi.Sdk.Nodes`.
+The idiom:
+
+- `context.GetLogger<T>()` / `GetLogger(category)` resolve an `ILoggerFactory` from
+  `RuntimeServices` and fall back to `NullLogger` — logging is always available, always silent
+  unless the runtime wires a factory.
+- Components emit meaningful events via source-generated `[LoggerMessage]` methods, quiet by
+  default: agent send/receive with client-resolution source (Debug), missing collaborators
+  (Warning), collaborator exceptions (Error), script-engine dispatch, definition loads, trigger
+  fires, multipart client request/response.
+- Execution tracing is composition, not base-class noise: `node.WithLogging()` wraps any
+  `INode<TIn,TOut>` with start/success-with-duration/failure/exception logging under the
+  `Ovi.Sdk.Nodes.LoggingNode` category.
 
 ### Tools and agents
 
@@ -150,3 +189,7 @@ process is runtime territory.
 5. **Serializable state, always** — fail at write time, not persistence time.
 6. **Align with Microsoft.Extensions.AI** — `AIFunction`, `IChatClient`, function invocation;
    never a parallel abstraction.
+7. **Expected failures are results, not exceptions** — `Result<T>` with the closed error set on
+   every execution API; exceptions only for programmer errors and cancellation.
+8. **Observable by default, silent by default** — `GetLogger` + `[LoggerMessage]` events +
+   `WithLogging` decorator; zero cost until a runtime registers an `ILoggerFactory`.

@@ -45,9 +45,9 @@ public sealed class WebhookTriggerNode : TriggerNode<WebhookRequest, WebhookRequ
         "Webhook Trigger",
         "Starts a workflow from an incoming HTTP request.");
 
-    public override ValueTask<WebhookRequest> ExecuteAsync(WebhookRequest input, WorkflowExecutionContext context)
+    public override ValueTask<Result<WebhookRequest>> ExecuteAsync(WebhookRequest input, WorkflowExecutionContext context)
     {
         ArgumentNullException.ThrowIfNull(input);
-        return ValueTask.FromResult(input);
+        return ValueTask.FromResult(Result<WebhookRequest>.Success(input));
     }
 }

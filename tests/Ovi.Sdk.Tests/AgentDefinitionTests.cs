@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Ovi.Sdk.Agents;
 using Ovi.Sdk.Nodes;
 using Xunit;
@@ -37,8 +36,10 @@ public class AgentDefinitionTests
     [Fact]
     public void Loads_an_agent_from_yaml()
     {
-        var definition = AgentDefinitionSerializer.FromYaml(Yaml);
+        var result = AgentDefinitionSerializer.FromYaml(Yaml);
 
+        Assert.True(result.IsSuccess);
+        var definition = result.Value;
         Assert.Equal(NodeId.Parse("acme/researcher@1.0.0"), definition.Id);
         Assert.Equal("Researcher", definition.Name);
         Assert.Equal("Answers questions using its tools.", definition.Description);
@@ -54,8 +55,8 @@ public class AgentDefinitionTests
     [Fact]
     public void Yaml_and_json_produce_the_same_definition()
     {
-        var fromYaml = AgentDefinitionSerializer.FromYaml(Yaml);
-        var fromJson = AgentDefinitionSerializer.FromJson(Json);
+        var fromYaml = AgentDefinitionSerializer.FromYaml(Yaml).Value;
+        var fromJson = AgentDefinitionSerializer.FromJson(Json).Value;
 
         AssertEquivalent(fromYaml, fromJson);
     }
@@ -63,8 +64,8 @@ public class AgentDefinitionTests
     [Fact]
     public void Round_trips_through_json()
     {
-        var original = AgentDefinitionSerializer.FromYaml(Yaml);
-        var roundTripped = AgentDefinitionSerializer.FromJson(AgentDefinitionSerializer.ToJson(original));
+        var original = AgentDefinitionSerializer.FromYaml(Yaml).Value;
+        var roundTripped = AgentDefinitionSerializer.FromJson(AgentDefinitionSerializer.ToJson(original)).Value;
 
         AssertEquivalent(original, roundTripped);
     }
@@ -72,8 +73,8 @@ public class AgentDefinitionTests
     [Fact]
     public void Round_trips_through_yaml()
     {
-        var original = AgentDefinitionSerializer.FromYaml(Yaml);
-        var roundTripped = AgentDefinitionSerializer.FromYaml(AgentDefinitionSerializer.ToYaml(original));
+        var original = AgentDefinitionSerializer.FromYaml(Yaml).Value;
+        var roundTripped = AgentDefinitionSerializer.FromYaml(AgentDefinitionSerializer.ToYaml(original)).Value;
 
         AssertEquivalent(original, roundTripped);
     }
@@ -91,8 +92,14 @@ public class AgentDefinitionTests
             File.WriteAllText(jsonPath, Json);
             File.WriteAllText(textPath, Yaml);
 
-            AssertEquivalent(AgentDefinitionSerializer.Load(yamlPath), AgentDefinitionSerializer.Load(jsonPath));
-            Assert.Throws<NotSupportedException>(() => AgentDefinitionSerializer.Load(textPath));
+            AssertEquivalent(
+                AgentDefinitionSerializer.Load(yamlPath).Value,
+                AgentDefinitionSerializer.Load(jsonPath).Value);
+
+            var unsupported = AgentDefinitionSerializer.Load(textPath);
+            Assert.True(unsupported.IsFailure);
+            var error = Assert.IsType<ValidationError>(unsupported.Error);
+            Assert.Contains(".txt", error.Message);
         }
         finally
         {
@@ -101,10 +108,29 @@ public class AgentDefinitionTests
     }
 
     [Fact]
-    public void Definitions_without_required_metadata_are_rejected()
+    public void Missing_files_are_execution_errors()
     {
-        Assert.ThrowsAny<JsonException>(() => AgentDefinitionSerializer.FromYaml("id: acme/incomplete@1.0.0"));
-        Assert.ThrowsAny<JsonException>(() => AgentDefinitionSerializer.FromJson("""{"name": "No Id"}"""));
+        var result = AgentDefinitionSerializer.Load(Path.Combine(Path.GetTempPath(), "does-not-exist-ovi.yaml"));
+
+        Assert.True(result.IsFailure);
+        var error = Assert.IsType<ExecutionError>(result.Error);
+        Assert.IsAssignableFrom<IOException>(error.Exception);
+    }
+
+    [Fact]
+    public void Definitions_without_required_metadata_are_validation_errors()
+    {
+        var yaml = AgentDefinitionSerializer.FromYaml("id: acme/incomplete@1.0.0");
+        Assert.True(yaml.IsFailure);
+        var yamlError = Assert.IsType<ValidationError>(yaml.Error);
+        Assert.NotNull(yamlError.Detail);
+
+        var json = AgentDefinitionSerializer.FromJson("""{"name": "No Id"}""");
+        Assert.True(json.IsFailure);
+        Assert.IsType<ValidationError>(json.Error);
+
+        Assert.True(AgentDefinitionSerializer.FromJson("   ").IsFailure);
+        Assert.True(AgentDefinitionSerializer.FromYaml("   ").IsFailure);
     }
 
     private static void AssertEquivalent(AgentDefinition expected, AgentDefinition actual)

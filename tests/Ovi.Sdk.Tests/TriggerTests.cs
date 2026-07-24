@@ -15,7 +15,8 @@ public class TriggerTests
 
         var output = await trigger.FireAsync("start!", NewContext());
 
-        Assert.Equal("start!", output);
+        Assert.True(output.IsSuccess);
+        Assert.Equal("start!", output.Value);
         Assert.True(trigger.Id.IsBuiltIn);
     }
 
@@ -32,8 +33,8 @@ public class TriggerTests
 
         var output = await trigger.FireAsync(request, NewContext());
 
-        Assert.Same(request, output);
-        Assert.Equal(7, output.ParseJsonBody()!["orderId"]!.GetValue<int>());
+        Assert.Same(request, output.Value);
+        Assert.Equal(7, output.Value.ParseJsonBody()!["orderId"]!.GetValue<int>());
         Assert.Null(new WebhookRequest().ParseJsonBody());
     }
 
@@ -48,19 +49,30 @@ public class TriggerTests
 
         var payload = ChatTriggerNode.FromWebhook(webhook);
 
-        Assert.Equal("Hello!", payload.Message);
-        Assert.Equal("s-1", payload.SessionId);
-        Assert.Equal("u-9", payload.UserId);
+        Assert.True(payload.IsSuccess);
+        Assert.Equal("Hello!", payload.Value.Message);
+        Assert.Equal("s-1", payload.Value.SessionId);
+        Assert.Equal("u-9", payload.Value.UserId);
 
-        var output = await new ChatTriggerNode().FireAsync(payload, NewContext());
-        Assert.Same(payload, output);
+        var output = await new ChatTriggerNode().FireAsync(payload.Value, NewContext());
+        Assert.Same(payload.Value, output.Value);
     }
 
     [Fact]
-    public void Chat_triggers_reject_bodies_that_are_not_chat_messages()
+    public void Chat_triggers_report_bad_bodies_as_validation_errors()
     {
-        Assert.Throws<FormatException>(() => ChatTriggerNode.FromWebhook(new WebhookRequest { Body = "42" }));
-        Assert.Throws<FormatException>(() => ChatTriggerNode.FromWebhook(new WebhookRequest { Body = """{"note": "no message"}""" }));
+        var notAnObject = ChatTriggerNode.FromWebhook(new WebhookRequest { Body = "42" });
+        Assert.True(notAnObject.IsFailure);
+        Assert.IsType<ValidationError>(notAnObject.Error);
+
+        var noMessage = ChatTriggerNode.FromWebhook(new WebhookRequest { Body = """{"note": "no message"}""" });
+        Assert.True(noMessage.IsFailure);
+        Assert.Contains("'message'", noMessage.Error.Message);
+
+        var invalidJson = ChatTriggerNode.FromWebhook(new WebhookRequest { Body = "{not json" });
+        Assert.True(invalidJson.IsFailure);
+        var error = Assert.IsType<ValidationError>(invalidJson.Error);
+        Assert.NotNull(error.Detail);
     }
 
     [Fact]
@@ -96,8 +108,8 @@ public class TriggerTests
 
         var output = await trigger.FireAsync(tick, NewContext());
 
-        Assert.True(output.IsManual);
-        Assert.Equal(tick.FiredAt, output.FiredAt);
+        Assert.True(output.Value.IsManual);
+        Assert.Equal(tick.FiredAt, output.Value.FiredAt);
 
         var after = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         Assert.Equal(after.AddHours(1), trigger.GetNextOccurrence(after));
