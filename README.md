@@ -17,6 +17,7 @@ ships.
 | `Ovi.Sdk.Agents` | `AgentNode` (a node with tool connections), YAML/JSON `AgentDefinition`s, `AgentWorkflowExecutionContext` (chat client + chat history), and the intentionally incomplete `MultipartHttpChatClient`. |
 | `Ovi.Sdk.Triggers` | Workflow starting points: chat (webhook-shaped), webhook, schedule (interval or cron), manual — all manually fireable for testing. |
 | `Ovi.Sdk.Packaging` | The `.ovipkg` format: a zip with a `manifest.json`, carrying nodes/agents/tools/triggers. Authoring (`OviPackageBuilder`) and reading (`OviPackage`). |
+| `Ovi.Sdk.Scripting` | `PythonScriptNode` — a node whose behavior is a Python script (`def run(input, context)`). Contracts + the `IPythonScriptEngine` seam; execution engines come with the runtime ([design plan](docs/python-script-execution.md)). |
 
 Dependency layering (arrows = "references"):
 
@@ -24,6 +25,7 @@ Dependency layering (arrows = "references"):
 Tools ──▶ Nodes ◀── Triggers
   ▲            ▲
   └── Agents ──┘         Packaging ──▶ Nodes
+                         Scripting ──▶ Nodes
 ```
 
 ## Core concepts
@@ -177,6 +179,29 @@ now" tooling.
 var trigger = new ScheduleTriggerNode(Schedule.FromCron("0 9 * * MON-FRI"));
 var tick = await trigger.FireAsync(ScheduleTick.Manual(), context); // manual firing for tests
 ```
+
+### Scripting (Python)
+
+A **script is a node too**: `PythonScriptNode` takes JSON in and JSON out
+(`Node<JsonNode?, JsonNode?>`), so scripted nodes compose with everything else. The script
+defines an entry point (default `run`) that receives the input and a read-only context snapshot
+(workflow info + the three state scopes) and returns the output:
+
+```python
+def run(input, context):
+    return {"total": sum(input["amounts"]), "run": context["workflow"]["runId"]}
+```
+
+```csharp
+var node = new PythonScriptNode(PythonScript.FromFile("totals.py"));
+var output = await node.ExecuteAsync(input, context); // engine resolved from node or RuntimeServices
+```
+
+Execution is deliberately decoupled behind `IPythonScriptEngine` — the SDK ships the contract, the
+runtime supplies the engine. The candidate engine designs (CPython subprocess with a JSON-over-stdio
+bootstrap, pythonnet, IronPython, WASM) and the security/packaging plan live in
+[`docs/python-script-execution.md`](docs/python-script-execution.md). Fake engines keep script
+nodes atomically testable today.
 
 ### Packaging (`.ovipkg`)
 

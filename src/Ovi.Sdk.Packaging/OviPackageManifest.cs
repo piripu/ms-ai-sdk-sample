@@ -11,6 +11,7 @@ public enum PackagedNodeKind
     Agent,
     Tool,
     Trigger,
+    Script,
 }
 
 /// <summary>One node carried by a package: its descriptor metadata, kind, and (optionally) the

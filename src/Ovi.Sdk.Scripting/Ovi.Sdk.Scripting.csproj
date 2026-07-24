@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Scripting node contracts for the Ovi workflow SDK: run Python scripts (def run(input, context)) as workflow nodes. Defines the node and the script-engine seam; actual Python execution engines are supplied later (see docs/python-script-execution.md).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
+  </ItemGroup>
+
+</Project>

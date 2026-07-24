@@ -10,6 +10,7 @@
     <ProjectReference Include="../../src/Ovi.Sdk.Agents/Ovi.Sdk.Agents.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Triggers/Ovi.Sdk.Triggers.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Packaging/Ovi.Sdk.Packaging.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Scripting/Ovi.Sdk.Scripting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
