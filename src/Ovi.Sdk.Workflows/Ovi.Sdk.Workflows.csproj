@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Workflow contracts for the Ovi SDK: the declarative n8n-style workflow model (node instances + the connections between them), authorable in JSON or YAML, with graph validation and analysis (entry nodes, execution order) — definitions only, no execution engine.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared YAML→JSON front end, compiled in as internal (no public surface, no cross-package reference). -->
+    <Compile Include="../Shared/YamlJsonBridge.cs" Link="Internal/YamlJsonBridge.cs" />
+  </ItemGroup>
+
+</Project>

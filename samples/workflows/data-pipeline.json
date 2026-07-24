@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schemas/workflow-definition.schema.json",
+  "id": "acme/data-pipeline@0.2.0",
+  "name": "Data Pipeline",
+  "description": "A scheduled extract/transform/load run. The extract fans out to two independent transforms that fan back in to a single load step — a diamond-shaped DAG.",
+  "nodes": [
+    {
+      "key": "every-morning",
+      "node": "./schedule-trigger",
+      "config": { "cron": "0 9 * * MON-FRI" },
+      "displayName": "Weekday 9am"
+    },
+    {
+      "key": "extract",
+      "node": "./python-script",
+      "config": { "path": "scripts/extract.py" }
+    },
+    {
+      "key": "transform-sales",
+      "node": "./python-script",
+      "config": { "path": "scripts/transform_sales.py" }
+    },
+    {
+      "key": "transform-inventory",
+      "node": "./python-script",
+      "config": { "path": "scripts/transform_inventory.py" }
+    },
+    {
+      "key": "load",
+      "node": "./python-script",
+      "config": { "path": "scripts/load.py" }
+    }
+  ],
+  "connections": [
+    { "from": "every-morning", "to": "extract" },
+    { "from": "extract", "to": "transform-sales" },
+    { "from": "extract", "to": "transform-inventory" },
+    { "from": "transform-sales", "to": "load" },
+    { "from": "transform-inventory", "to": "load" }
+  ]
+}

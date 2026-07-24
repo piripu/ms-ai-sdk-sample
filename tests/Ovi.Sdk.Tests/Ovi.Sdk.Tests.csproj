@@ -11,6 +11,7 @@
     <ProjectReference Include="../../src/Ovi.Sdk.Triggers/Ovi.Sdk.Triggers.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Packaging/Ovi.Sdk.Packaging.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Scripting/Ovi.Sdk.Scripting.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Workflows/Ovi.Sdk.Workflows.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,7 +22,9 @@
 
   <ItemGroup>
     <None Include="../../schemas/agent-definition.schema.json" CopyToOutputDirectory="PreserveNewest" LinkBase="schemas" />
+    <None Include="../../schemas/workflow-definition.schema.json" CopyToOutputDirectory="PreserveNewest" LinkBase="schemas" />
     <None Include="../../samples/agents/*.*" CopyToOutputDirectory="PreserveNewest" LinkBase="samples/agents" />
+    <None Include="../../samples/workflows/*.*" CopyToOutputDirectory="PreserveNewest" LinkBase="samples/workflows" />
   </ItemGroup>
 
 

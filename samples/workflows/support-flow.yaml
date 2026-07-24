@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../../schemas/workflow-definition.schema.json
+id: acme/support-flow@1.0.0
+name: Support Flow
+description: >
+  Turns an inbound support chat into a triaged, drafted reply, then runs a
+  post-processing script. A linear three-node workflow: trigger, agent, script.
+nodes:
+  - key: inbound
+    node: ./chat-trigger
+    displayName: Inbound chat
+    metadata:
+      position: [120, 240]
+  - key: triage
+    node: acme/support-triage@0.1.0
+    displayName: Triage the message
+    metadata:
+      position: [420, 240]
+  - key: notify
+    node: ./python-script
+    config:
+      path: scripts/notify.py
+    displayName: Post to the support channel
+    metadata:
+      position: [720, 240]
+connections:
+  - from: inbound
+    to: triage
+  - from: triage
+    to: notify
+metadata:
+  editorVersion: "1"

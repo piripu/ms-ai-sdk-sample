@@ -25,8 +25,10 @@ and add `~/.dotnet` to `PATH`.
 | `src/Ovi.Sdk.Triggers` | Chat/webhook/schedule/manual trigger nodes | Cronos |
 | `src/Ovi.Sdk.Scripting` | `PythonScriptNode` + `IPythonScriptEngine` seam (no engine by design) | none |
 | `src/Ovi.Sdk.Packaging` | `.ovipkg` format (zip + `manifest.json`) | none |
+| `src/Ovi.Sdk.Workflows` | Declarative n8n-style workflow model: `WorkflowDefinition` (YAML/JSON), `WorkflowGraph` validation + analysis (DAG, entry nodes, execution order). Definitions only | YamlDotNet |
+| `src/Shared` | Shared-source compiled `internal` into multiple packages (`YamlJsonBridge`, namespace `Ovi.Sdk.Internal`; linked into Agents + Workflows) | — |
 | `tests/Ovi.Sdk.Tests` | One suite for everything; doubles as usage documentation | xunit |
-| `schemas/`, `samples/` | Agent-definition JSON Schema + working YAML/JSON samples | — |
+| `schemas/`, `samples/` | Agent- and workflow-definition JSON Schemas + working YAML/JSON samples | — |
 
 ## Rules that must hold (tests enforce several of them)
 
@@ -63,7 +65,9 @@ and add `~/.dotnet` to `PATH`.
    naming all three (with a fix-it hint).
 8. **One JSON pipeline.** `OviJson` carries the conventions (camelCase, case-insensitive, camel
    enum strings); YAML is bridged onto the JSON node model (`YamlJsonBridge`) so both formats parse
-   identically. New declarative formats must reuse this pipeline.
+   identically. New declarative formats must reuse this pipeline — link the shared
+   `src/Shared/YamlJsonBridge.cs` (namespace `Ovi.Sdk.Internal`) as `internal` source rather than
+   copying it or adding a cross-package reference.
 9. **Microsoft.Extensions.AI alignment.** Tools surface as `AIFunction`; agents accept any
    `IChatClient`; MCP arrives later via `Tool.FromAIFunction` — never invent a parallel abstraction.
 10. **Expected failures are results.** Execution APIs return `Result<T>` with the closed error set

@@ -12,6 +12,7 @@ public enum PackagedNodeKind
     Tool,
     Trigger,
     Script,
+    Workflow,
 }
 
 /// <summary>One node carried by a package: its descriptor metadata, kind, and (optionally) the

@@ -48,7 +48,7 @@ builder generates it.
 | `manifestVersion` | Schema version of the manifest itself; currently `1` (`OviPackageFormat.CurrentManifestVersion`). |
 | `packageId` | Package identity, same grammar as node ids. |
 | `nodes[].id/name/description` | The node's descriptor metadata. |
-| `nodes[].kind` | `node` \| `agent` \| `tool` \| `trigger` \| `script` (`PackagedNodeKind`, camelCase strings). |
+| `nodes[].kind` | `node` \| `agent` \| `tool` \| `trigger` \| `script` \| `workflow` (`PackagedNodeKind`, camelCase strings). |
 | `nodes[].path` | Package-relative asset that defines the node (agent YAML/JSON, script `.py`); optional for nodes defined elsewhere (e.g. built-ins referenced by id). |
 
 JSON conventions come from `OviJson`: camelCase properties, case-insensitive reads, camelCase enum

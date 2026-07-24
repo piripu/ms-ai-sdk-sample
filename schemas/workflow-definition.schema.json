@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/piripu/ms-ai-sdk-sample/main/schemas/workflow-definition.schema.json",
+  "title": "Ovi Workflow Definition",
+  "description": "Declarative definition of an Ovi workflow (n8n-style: node instances plus the connections between them), authorable in JSON or YAML and loaded by WorkflowDefinitionSerializer (Ovi.Sdk.Workflows). YAML documents are bridged onto the JSON object model, so this one schema governs both formats. The loader additionally enforces graph rules the schema cannot express (unique keys, connection endpoints exist, no self-loops or duplicate edges, acyclic). Note: the schema is stricter than the runtime loader (which ignores unknown properties) so that typos are caught at authoring time.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema for editor tooling. Ignored by the runtime loader."
+    },
+    "id": {
+      "$ref": "#/$defs/nodeId",
+      "description": "The workflow's node identity: 'organization/name@semver' for published workflows, or './name[@semver]' for built-ins (only built-ins may omit the version). Organization and name are case-insensitive slugs.",
+      "examples": ["acme/support-flow@1.0.0", "./data-pipeline@0.1.0"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The workflow's human-readable display name.",
+      "examples": ["Support Flow"]
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "What the workflow does."
+    },
+    "nodes": {
+      "type": "array",
+      "description": "The node instances the workflow contains. Each has a workflow-unique 'key' that connections refer to and a 'node' type id it instantiates.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/nodeDefinition"
+      }
+    },
+    "connections": {
+      "type": "array",
+      "description": "The directed edges wiring node instances together, by their keys. Output of 'from' flows to input of 'to'. The graph must be acyclic.",
+      "items": {
+        "$ref": "#/$defs/connection"
+      },
+      "default": []
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "description": "Free-form editor metadata (canvas viewport, notes). Outside the SDK's semantics."
+    }
+  },
+  "required": ["id", "name", "nodes"],
+  "additionalProperties": false,
+  "$defs": {
+    "nodeId": {
+      "type": "string",
+      "description": "An Ovi node id. Published form: 'organization/name@semver' (version required). Built-in form: './name' with an optional '@semver'. Slugs start and end with an ASCII letter or digit and may contain '.', '_' and '-' in between; the version is full semver (prerelease and build metadata allowed).",
+      "pattern": "^(?:\\./[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?(?:@(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?)?|[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?@(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?)$",
+      "examples": [
+        "acme/web-search@1.2.0",
+        "acme/web-search@2.0.0-beta.1",
+        "./manual-trigger",
+        "./schedule-trigger@0.3.1"
+      ]
+    },
+    "nodeKey": {
+      "type": "string",
+      "description": "A workflow-unique node instance key. Starts with an ASCII letter or digit, followed by letters, digits, '_' or '-'. Referenced by connections.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "examples": ["trigger", "triage-agent", "enrich_1"]
+    },
+    "nodeDefinition": {
+      "type": "object",
+      "description": "One node instance: a workflow-unique key, the node-type id it runs, and optional instance config, display name, and editor metadata.",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/nodeKey",
+          "description": "The workflow-unique instance key that connections reference."
+        },
+        "node": {
+          "$ref": "#/$defs/nodeId",
+          "description": "The node-type identity this instance runs."
+        },
+        "config": {
+          "type": ["object", "null"],
+          "description": "Free-form, instance-specific configuration passed to the node at bind time."
+        },
+        "displayName": {
+          "type": ["string", "null"],
+          "description": "An optional display name for this instance, overriding the node type's name in editors."
+        },
+        "metadata": {
+          "type": ["object", "null"],
+          "description": "Free-form editor metadata (canvas position, notes)."
+        }
+      },
+      "required": ["key", "node"],
+      "additionalProperties": false
+    },
+    "connection": {
+      "type": "object",
+      "description": "A directed edge between two node instances, by their keys.",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/nodeKey",
+          "description": "The source node instance key (the edge's tail)."
+        },
+        "to": {
+          "$ref": "#/$defs/nodeKey",
+          "description": "The target node instance key (the edge's head)."
+        }
+      },
+      "required": ["from", "to"],
+      "additionalProperties": false
+    }
+  }
+}
