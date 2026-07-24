@@ -15,7 +15,7 @@ namespace Ovi.Sdk.Scripting;
 /// implementations arrive with the runtime (see <c>docs/python-script-execution.md</c> for the
 /// execution plan), and tests use fake engines, keeping script nodes atomically testable now.
 /// </remarks>
-public class PythonScriptNode : Node<JsonNode?, JsonNode?>
+public sealed class PythonScriptNode : Node<JsonNode?, JsonNode?>
 {
     public PythonScriptNode(
         PythonScript script,

@@ -11,7 +11,7 @@ namespace Ovi.Sdk.Tools;
 /// <remarks>
 /// Because <see cref="AIFunction"/> is also the shape MCP tools take (an MCP client tool is an
 /// <see cref="AIFunction"/> subclass), this contract lets MCP-backed tools plug in later without any
-/// change to agents: wrap the MCP function in an <see cref="AIFunctionTool"/>.
+/// change to agents: wrap the MCP function via <see cref="Tool.FromAIFunction"/>.
 /// </remarks>
 public interface ITool
 {

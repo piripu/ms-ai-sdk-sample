@@ -40,7 +40,7 @@ public sealed record ChatTriggerPayload
 /// request (<c>{"message": ..., "sessionId": ..., "userId": ...}</c>) into a
 /// <see cref="ChatTriggerPayload"/>.
 /// </summary>
-public class ChatTriggerNode : TriggerNode<ChatTriggerPayload, ChatTriggerPayload>
+public sealed class ChatTriggerNode : TriggerNode<ChatTriggerPayload, ChatTriggerPayload>
 {
     public ChatTriggerNode(NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)

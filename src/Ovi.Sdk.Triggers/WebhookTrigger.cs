@@ -29,11 +29,11 @@ public sealed record WebhookRequest
 
 /// <summary>
 /// A trigger fired by an incoming HTTP request. The runtime (or a test) delivers a
-/// <see cref="WebhookRequest"/>; the base implementation passes it through, and derived triggers
-/// override <see cref="ExecuteAsync"/> to normalize the request into a richer payload — see
-/// <see cref="ChatTriggerNode"/> for the canonical example.
+/// <see cref="WebhookRequest"/>; the node passes it through, and normalization into richer payloads
+/// composes on top — map the request (see <see cref="ChatTriggerNode.FromWebhook"/>) or wrap it in a
+/// delegate node (<c>Node.Create</c>).
 /// </summary>
-public class WebhookTriggerNode : TriggerNode<WebhookRequest, WebhookRequest>
+public sealed class WebhookTriggerNode : TriggerNode<WebhookRequest, WebhookRequest>
 {
     public WebhookTriggerNode(NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)

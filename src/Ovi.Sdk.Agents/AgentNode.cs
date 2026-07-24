@@ -11,12 +11,13 @@ namespace Ovi.Sdk.Agents;
 /// </summary>
 /// <remarks>
 /// The chat client is resolved per execution, in priority order: the client fixed on this node,
-/// then <see cref="AgentWorkflowExecutionContext.ChatClient"/>, then an <see cref="IChatClient"/>
-/// registered in <see cref="WorkflowExecutionContext.RuntimeServices"/>. Any
-/// <see cref="IChatClient"/> works: an Ollama client, a cloud provider's client, or the SDK's own
-/// (intentionally incomplete) <see cref="MultipartHttpChatClient"/>.
+/// then the context's <see cref="AgentChatFeature"/> (attached directly or via
+/// <see cref="AgentWorkflowExecutionContext"/>), then an <see cref="IChatClient"/> registered in
+/// <see cref="WorkflowExecutionContext.RuntimeServices"/>. Any <see cref="IChatClient"/> works: an
+/// Ollama client, a cloud provider's client, or the SDK's own (intentionally incomplete)
+/// <see cref="MultipartHttpChatClient"/>.
 /// </remarks>
-public class AgentNode : Node<AgentRequest, AgentResponse>
+public sealed class AgentNode : Node<AgentRequest, AgentResponse>
 {
     public AgentNode(
         NodeDescriptor descriptor,
@@ -80,12 +81,12 @@ public class AgentNode : Node<AgentRequest, AgentResponse>
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(context);
 
-        var agentContext = context as AgentWorkflowExecutionContext;
+        var chat = context.GetFeature<AgentChatFeature>();
         var client = ChatClient
-            ?? agentContext?.ChatClient
+            ?? chat?.ChatClient
             ?? context.GetService<IChatClient>()
             ?? throw new InvalidOperationException(
-                $"Agent '{Id}' has no chat client. Provide one on the node, use an AgentWorkflowExecutionContext, or register an IChatClient in RuntimeServices.");
+                $"Agent '{Id}' has no chat client. Provide one on the node, attach an AgentChatFeature to the context (or use AgentWorkflowExecutionContext), or register an IChatClient in RuntimeServices.");
 
         var requestMessages = BuildRequestMessages(input);
 
@@ -95,9 +96,9 @@ public class AgentNode : Node<AgentRequest, AgentResponse>
             messages.Add(new ChatMessage(ChatRole.System, Instructions));
         }
 
-        if (agentContext is not null)
+        if (chat is not null)
         {
-            messages.AddRange(agentContext.ChatHistory);
+            messages.AddRange(chat.ChatHistory);
         }
 
         messages.AddRange(requestMessages);
@@ -118,16 +119,16 @@ public class AgentNode : Node<AgentRequest, AgentResponse>
 
         var response = await client.GetResponseAsync(messages, options, context.CancellationToken).ConfigureAwait(false);
 
-        if (agentContext is not null)
+        if (chat is not null)
         {
             foreach (var message in requestMessages)
             {
-                agentContext.ChatHistory.Add(message);
+                chat.ChatHistory.Add(message);
             }
 
             foreach (var message in response.Messages)
             {
-                agentContext.ChatHistory.Add(message);
+                chat.ChatHistory.Add(message);
             }
         }
 

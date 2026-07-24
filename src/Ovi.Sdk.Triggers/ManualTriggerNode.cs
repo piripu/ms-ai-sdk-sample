@@ -6,7 +6,7 @@ namespace Ovi.Sdk.Triggers;
 /// The simplest trigger: starts a workflow on demand and passes the caller-supplied payload through
 /// unchanged. Useful as the entry point for tests and for "run workflow now" tooling.
 /// </summary>
-public class ManualTriggerNode<TPayload> : TriggerNode<TPayload, TPayload>
+public sealed class ManualTriggerNode<TPayload> : TriggerNode<TPayload, TPayload>
 {
     public ManualTriggerNode(NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)

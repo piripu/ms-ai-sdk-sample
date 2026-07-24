@@ -29,7 +29,7 @@ public sealed record ScheduleTick
 /// each firing delivers. Like every trigger it can be fired manually, e.g. with
 /// <see cref="ScheduleTick.Manual"/>.
 /// </summary>
-public class ScheduleTriggerNode : TriggerNode<ScheduleTick, ScheduleTick>
+public sealed class ScheduleTriggerNode : TriggerNode<ScheduleTick, ScheduleTick>
 {
     public ScheduleTriggerNode(Schedule schedule, NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)

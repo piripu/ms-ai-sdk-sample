@@ -4,35 +4,34 @@ using Ovi.Sdk.Nodes;
 namespace Ovi.Sdk.Agents;
 
 /// <summary>
-/// A <see cref="WorkflowExecutionContext"/> specialized for agent execution. On top of the shared
-/// context it carries the current run's <see cref="ChatClient"/> and the mutable
-/// <see cref="ChatHistory"/> agents read from and append to.
+/// Convenience sugar for agent execution: wraps a base <see cref="WorkflowExecutionContext"/> and
+/// attaches an <see cref="AgentChatFeature"/> carrying the run's <see cref="ChatClient"/> and
+/// <see cref="ChatHistory"/>.
 /// </summary>
 /// <remarks>
-/// Built by wrapping an existing base context, so state stores, services, cancellation and the
-/// properties bag remain shared with the rest of the run. Future agent-scoped capabilities (e.g.
-/// memory) belong here as well.
+/// The capability lives in the feature, not the subtype: agent nodes read
+/// <c>context.GetFeature&lt;AgentChatFeature&gt;()</c>, so a plain context with the feature attached
+/// (via <c>SetFeature</c> or the builder's <c>WithFeature</c>) behaves identically to this class.
+/// State stores, services, cancellation, properties and features remain shared with the wrapped
+/// context.
 /// </remarks>
-public class AgentWorkflowExecutionContext : WorkflowExecutionContext
+public sealed class AgentWorkflowExecutionContext : WorkflowExecutionContext
 {
+    private readonly AgentChatFeature _chat;
+
     public AgentWorkflowExecutionContext(
         WorkflowExecutionContext baseContext,
         IChatClient chatClient,
         IList<ChatMessage>? chatHistory = null)
         : base(baseContext)
     {
-        ArgumentNullException.ThrowIfNull(chatClient);
-
-        ChatClient = chatClient;
-        ChatHistory = chatHistory ?? [];
+        _chat = new AgentChatFeature(chatClient, chatHistory);
+        SetFeature(_chat);
     }
 
     /// <summary>The chat client agents in this run converse through.</summary>
-    public IChatClient ChatClient { get; }
+    public IChatClient ChatClient => _chat.ChatClient;
 
-    /// <summary>
-    /// The conversation so far. Agents prepend this history to their requests and append both the
-    /// incoming request messages and the model's response messages after each turn.
-    /// </summary>
-    public IList<ChatMessage> ChatHistory { get; }
+    /// <summary>The conversation so far (see <see cref="AgentChatFeature.ChatHistory"/>).</summary>
+    public IList<ChatMessage> ChatHistory => _chat.ChatHistory;
 }
