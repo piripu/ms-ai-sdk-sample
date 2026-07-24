@@ -1,8 +1,10 @@
 # Ovi SDK architecture
 
 The Ovi SDK defines what a **workflow node** is — its identity, its execution contract, how it
-ships — without shipping a workflow engine. A workflow contains individual nodes and defines how
-they connect; composing and running workflows is the job of a future runtime built on these
+ships — and what a **workflow** is — the declarative graph of node instances and their connections —
+without shipping a workflow *engine*. A workflow contains individual nodes and defines how they
+connect; the SDK can parse, validate, and analyze that graph, but *running* it (binding ids to
+instances, scheduling, passing data along edges) is the job of a future runtime built on these
 contracts.
 
 ## The two-layer picture
@@ -17,14 +19,16 @@ contracts.
 │                                                            │
 │  Tools ──▶ Nodes ◀── Triggers        Packaging ──▶ Nodes   │
 │    ▲         ▲                       Scripting ──▶ Nodes   │
-│    └─ Agents ┘                                             │
+│    └─ Agents ┘                       Workflows ──▶ Nodes   │
 └────────────────────────────────────────────────────────────┘
 ```
 
 The SDK/runtime boundary **is** the abstractions boundary. There is deliberately no
 `Ovi.Sdk.Abstractions` package: `Ovi.Sdk.Nodes` plays that role (zero dependencies, contracts plus
 the in-memory defaults needed for atomic testing), and every implementation-shaped concern —
-schedulers, engines, persistence, loading — lands in future runtime packages rather than here.
+schedulers, engines, persistence, loading, *and workflow execution* — lands in future runtime
+packages rather than here. `Ovi.Sdk.Workflows` is the one place the SDK reasons about a graph of
+nodes rather than a single node, but it stops at analysis: it never runs anything.
 
 ### Dependency policy
 
@@ -177,6 +181,24 @@ are in [python-script-execution.md](python-script-execution.md).
 `.ovipkg` is a zip with a root `manifest.json` describing the nodes it carries; package ids share
 the node identity domain. Format details: [packaging.md](packaging.md). Loading packages into a
 process is runtime territory.
+
+### Workflows
+
+A **workflow** is a declarative graph: node *instances* (a workflow-unique `key` plus the node-type
+`NodeId` it runs, plus free-form `config`) and the `connections` between their keys. `WorkflowDefinition`
+is authorable in YAML or JSON through the same bridged pipeline as agents (`WorkflowDefinitionSerializer`
++ [`schemas/workflow-definition.schema.json`](../schemas/workflow-definition.schema.json)); the shared
+`YamlJsonBridge` lives in `src/Shared/` and is compiled `internal` into both Agents and Workflows, so
+one deserialization convention is reused with no cross-package dependency.
+
+`WorkflowDefinition.Validate()` produces a `WorkflowGraph` or a `ValidationError`. The v1 rules make a
+workflow a **DAG**: non-empty, slug-shaped and unique keys, connections whose endpoints exist, no
+self-loops, no duplicate edges, and no cycles (rejected via Kahn's algorithm, which also yields the
+`ExecutionOrder`). The graph then exposes `EntryNodes` (no inbound edge — where a run starts; being a
+*trigger* is a property of the node type, not the graph), a stable topological `ExecutionOrder`, and
+`GetUpstream`/`GetDownstream`/`TryGetNode`. This is the SDK's only multi-node abstraction, and it stops
+at analysis — binding ids to `INode`s and executing the order is runtime work. Ports/branching, loops,
+and sub-workflows-as-nodes are additive follow-ups (see [workflow-definitions.md](workflow-definitions.md)).
 
 ## Design principles (summary)
 

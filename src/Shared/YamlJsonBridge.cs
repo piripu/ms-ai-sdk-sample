@@ -4,12 +4,18 @@ using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 
-namespace Ovi.Sdk.Agents;
+namespace Ovi.Sdk.Internal;
 
 /// <summary>
 /// Converts between YAML documents and the System.Text.Json node model, so YAML and JSON inputs are
 /// deserialized by exactly the same code path (converters, naming policy, validation).
 /// </summary>
+/// <remarks>
+/// This is shared source, compiled independently into each package that needs a YAML→JSON front end
+/// (today: <c>Ovi.Sdk.Agents</c> and <c>Ovi.Sdk.Workflows</c>). It stays <see langword="internal"/>
+/// so it adds no public surface and creates no cross-package dependency: each assembly gets its own
+/// copy, and the one deserialization pipeline is a shared convention, not a shared reference.
+/// </remarks>
 internal static class YamlJsonBridge
 {
     /// <summary>Parses the first YAML document into a <see cref="JsonNode"/> tree; <see langword="null"/> for an empty document.</summary>

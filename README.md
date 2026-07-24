@@ -18,6 +18,7 @@ ships.
 | `Ovi.Sdk.Triggers` | Workflow starting points: chat (webhook-shaped), webhook, schedule (interval or cron), manual — all manually fireable for testing. |
 | `Ovi.Sdk.Packaging` | The `.ovipkg` format: a zip with a `manifest.json`, carrying nodes/agents/tools/triggers. Authoring (`OviPackageBuilder`) and reading (`OviPackage`). |
 | `Ovi.Sdk.Scripting` | `PythonScriptNode` — a node whose behavior is a Python script (`def run(input, context)`). Contracts + the `IPythonScriptEngine` seam; execution engines come with the runtime ([design plan](docs/python-script-execution.md)). |
+| `Ovi.Sdk.Workflows` | The declarative n8n-style workflow model: node instances + the connections between them (`WorkflowDefinition`, YAML/JSON), with graph validation and analysis (`WorkflowGraph`: entry nodes, execution order). Definitions only — no execution engine ([format spec](docs/workflow-definitions.md)). |
 
 Dependency layering (arrows = "references"):
 
@@ -26,6 +27,7 @@ Tools ──▶ Nodes ◀── Triggers
   ▲            ▲
   └── Agents ──┘         Packaging ──▶ Nodes
                          Scripting ──▶ Nodes
+                         Workflows ──▶ Nodes
 ```
 
 ## Core concepts
@@ -250,6 +252,46 @@ var yaml = package.ReadAllText("agents/researcher.yaml");
 Loading packages into a live runtime is deliberately out of scope here — this SDK owns the
 contracts; the runtime comes later.
 
+### Workflows
+
+A **workflow** is where the nodes come together: a declarative graph of node instances and the
+connections between them, n8n-style, authored in YAML or JSON. `Ovi.Sdk.Workflows` owns the
+*definition* — parsing, validation, and graph analysis — while executing the graph stays runtime
+work, like everything else in the SDK.
+
+```yaml
+# yaml-language-server: $schema=../../schemas/workflow-definition.schema.json
+id: acme/support-flow@1.0.0
+name: Support Flow
+nodes:
+  - key: inbound
+    node: ./chat-trigger                 # each instance has a workflow-unique key
+  - key: triage
+    node: acme/support-triage@0.1.0      # and the node-type id it runs
+  - key: notify
+    node: ./python-script
+    config: { path: scripts/notify.py }  # free-form, instance-specific
+connections:
+  - { from: inbound, to: triage }        # output of `from` flows to input of `to`
+  - { from: triage, to: notify }
+```
+
+Loading validates the graph, so a returned definition is structurally sound (non-empty, uniquely
+keyed, endpoints exist, no self-loops or duplicate edges, acyclic), and hands back an analyzable
+`WorkflowGraph`:
+
+```csharp
+var definition = WorkflowDefinitionSerializer.Load("support-flow.yaml").Value; // ValidationError / ExecutionError on failure
+var graph = definition.Validate().Value;
+
+graph.EntryNodes;               // instances with no inbound edge — where a run starts
+graph.ExecutionOrder;           // stable topological order (upstream before downstream)
+graph.GetDownstream("triage");  // ["notify"]
+```
+
+Workflows are DAGs in v1 (cycles are rejected); output ports/branching, loops, and sub-workflows are
+documented follow-ups. Full format spec: [`docs/workflow-definitions.md`](docs/workflow-definitions.md).
+
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — layering, core concepts, and the design
@@ -257,6 +299,8 @@ contracts; the runtime comes later.
 - [`docs/authoring-nodes.md`](docs/authoring-nodes.md) — recipes for building nodes, tools,
   agents, triggers, and script nodes, with the testing checklist.
 - [`docs/packaging.md`](docs/packaging.md) — the `.ovipkg` format specification.
+- [`docs/workflow-definitions.md`](docs/workflow-definitions.md) — the workflow definition format
+  (nodes + connections), validation rules, and graph-analysis API.
 - [`docs/python-script-execution.md`](docs/python-script-execution.md) — the deferred Python
   execution-engine plan.
 - [`AGENT.md`](AGENT.md) — grounding instructions for AI agents working on this repository
@@ -269,12 +313,16 @@ dotnet build
 dotnet test
 ```
 
-Requires the .NET 10 SDK (see `global.json`). The test suite (83 tests) doubles as usage
+Requires the .NET 10 SDK (see `global.json`). The test suite (166 tests) doubles as usage
 documentation for every area above.
 
 ## Deliberately deferred
 
-- **Runtime**: workflow graphs, node wiring, scheduling, package loading/activation.
+- **Runtime execution**: binding a workflow's node ids to runnable `INode`s, scheduling the
+  execution order, passing data along edges, node wiring, package loading/activation. (The workflow
+  *definition* and graph analysis ship now in `Ovi.Sdk.Workflows`.)
+- **Workflow shape follow-ups**: output ports/branching, loops (the v1 model is DAG-only), and
+  sub-workflows as nodes — all additive to the current definition format.
 - **MCP tools**: arrive via `Tool.FromAIFunction` once an MCP client is wired in.
 - **Agent memory**: lands on `AgentWorkflowExecutionContext` next to chat history.
 - **`MultipartHttpChatClient` response contract**: `ParseResponse`, streaming, binary parts.

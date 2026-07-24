@@ -6,6 +6,7 @@
     <Project Path="src/Ovi.Sdk.Scripting/Ovi.Sdk.Scripting.csproj" />
     <Project Path="src/Ovi.Sdk.Tools/Ovi.Sdk.Tools.csproj" />
     <Project Path="src/Ovi.Sdk.Triggers/Ovi.Sdk.Triggers.csproj" />
+    <Project Path="src/Ovi.Sdk.Workflows/Ovi.Sdk.Workflows.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Ovi.Sdk.Tests/Ovi.Sdk.Tests.csproj" />

@@ -10,6 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Shared YAML→JSON front end, compiled in as internal (no public surface, no cross-package reference). -->
+    <Compile Include="../Shared/YamlJsonBridge.cs" Link="Internal/YamlJsonBridge.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="YamlDotNet" />
