@@ -10,7 +10,8 @@ namespace Ovi.Sdk.Nodes;
 /// The untyped surface exists so a workflow runtime can wire heterogeneous nodes together; the typed
 /// contract is <see cref="INode{TInput, TOutput}"/>. Most nodes are composed via
 /// <see cref="Node.Create{TInput, TOutput}(NodeDescriptor, Func{TInput, WorkflowExecutionContext, TOutput})"/>
-/// or use the optional <see cref="Node{TInput, TOutput}"/> base class.
+/// or use the optional <see cref="Node{TInput, TOutput}"/> base class. Execution reports expected
+/// failures as a failed <see cref="Result{T}"/> rather than by throwing; see <see cref="Error"/>.
 /// </remarks>
 public interface INode
 {
@@ -25,8 +26,9 @@ public interface INode
 
     /// <summary>
     /// Executes the node with an untyped input, which must be assignable to <see cref="InputType"/>.
+    /// A mismatched input yields a failed result (<see cref="ValidationError"/>) rather than a throw.
     /// </summary>
-    ValueTask<object?> ExecuteAsync(object? input, WorkflowExecutionContext context);
+    ValueTask<Result<object?>> ExecuteAsync(object? input, WorkflowExecutionContext context);
 }
 
 /// <summary>
@@ -39,6 +41,10 @@ public interface INode
 /// <typeparam name="TOutput">The output the node produces.</typeparam>
 public interface INode<TInput, TOutput> : INode
 {
-    /// <summary>Executes the node against the shared workflow execution context.</summary>
-    ValueTask<TOutput> ExecuteAsync(TInput input, WorkflowExecutionContext context);
+    /// <summary>
+    /// Executes the node against the shared workflow execution context. Expected failures surface
+    /// as a failed <see cref="Result{T}"/> carrying an <see cref="Error"/>; exceptions are reserved
+    /// for programmer errors and cancellation.
+    /// </summary>
+    ValueTask<Result<TOutput>> ExecuteAsync(TInput input, WorkflowExecutionContext context);
 }

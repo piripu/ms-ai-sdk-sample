@@ -6,13 +6,13 @@ namespace Ovi.Sdk.Nodes;
 /// </summary>
 public static class Node
 {
-    /// <summary>Creates a node from an asynchronous delegate.</summary>
+    /// <summary>Creates a node from an asynchronous, result-returning delegate.</summary>
     public static DelegateNode<TInput, TOutput> Create<TInput, TOutput>(
         NodeDescriptor descriptor,
-        Func<TInput, WorkflowExecutionContext, ValueTask<TOutput>> execute) =>
+        Func<TInput, WorkflowExecutionContext, ValueTask<Result<TOutput>>> execute) =>
         new(descriptor, execute);
 
-    /// <summary>Creates a node from a synchronous delegate.</summary>
+    /// <summary>Creates a node from a synchronous delegate; the returned value becomes a success result.</summary>
     public static DelegateNode<TInput, TOutput> Create<TInput, TOutput>(
         NodeDescriptor descriptor,
         Func<TInput, WorkflowExecutionContext, TOutput> execute)
@@ -20,7 +20,7 @@ public static class Node
         ArgumentNullException.ThrowIfNull(execute);
         return new DelegateNode<TInput, TOutput>(
             descriptor,
-            (input, context) => ValueTask.FromResult(execute(input, context)));
+            (input, context) => ValueTask.FromResult(Result<TOutput>.Success(execute(input, context))));
     }
 }
 
@@ -31,18 +31,18 @@ public static class Node
 /// </summary>
 public sealed class DelegateNode<TInput, TOutput> : Node<TInput, TOutput>
 {
-    private readonly Func<TInput, WorkflowExecutionContext, ValueTask<TOutput>> _execute;
+    private readonly Func<TInput, WorkflowExecutionContext, ValueTask<Result<TOutput>>> _execute;
 
     public DelegateNode(
         NodeDescriptor descriptor,
-        Func<TInput, WorkflowExecutionContext, ValueTask<TOutput>> execute)
+        Func<TInput, WorkflowExecutionContext, ValueTask<Result<TOutput>>> execute)
         : base(descriptor)
     {
         ArgumentNullException.ThrowIfNull(execute);
         _execute = execute;
     }
 
-    public override ValueTask<TOutput> ExecuteAsync(TInput input, WorkflowExecutionContext context)
+    public override ValueTask<Result<TOutput>> ExecuteAsync(TInput input, WorkflowExecutionContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         return _execute(input, context);

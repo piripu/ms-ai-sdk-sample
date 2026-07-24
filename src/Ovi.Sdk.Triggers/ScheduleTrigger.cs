@@ -49,9 +49,9 @@ public sealed class ScheduleTriggerNode : TriggerNode<ScheduleTick, ScheduleTick
     /// <summary>The next time this trigger fires after <paramref name="after"/>.</summary>
     public DateTimeOffset? GetNextOccurrence(DateTimeOffset after) => Schedule.GetNextOccurrence(after);
 
-    public override ValueTask<ScheduleTick> ExecuteAsync(ScheduleTick input, WorkflowExecutionContext context)
+    public override ValueTask<Result<ScheduleTick>> ExecuteAsync(ScheduleTick input, WorkflowExecutionContext context)
     {
         ArgumentNullException.ThrowIfNull(input);
-        return ValueTask.FromResult(input);
+        return ValueTask.FromResult(Result<ScheduleTick>.Success(input));
     }
 }

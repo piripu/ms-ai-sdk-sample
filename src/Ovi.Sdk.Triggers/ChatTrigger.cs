@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Ovi.Sdk.Nodes;
 
@@ -38,7 +39,8 @@ public sealed record ChatTriggerPayload
 /// A trigger fired by an incoming chat message — the natural entry point in front of an agent. A chat
 /// trigger is effectively a specialized webhook: <see cref="FromWebhook"/> lifts a JSON webhook
 /// request (<c>{"message": ..., "sessionId": ..., "userId": ...}</c>) into a
-/// <see cref="ChatTriggerPayload"/>.
+/// <see cref="ChatTriggerPayload"/>, reporting malformed bodies as <see cref="ValidationError"/>
+/// failures instead of throwing.
 /// </summary>
 public sealed class ChatTriggerNode : TriggerNode<ChatTriggerPayload, ChatTriggerPayload>
 {
@@ -52,31 +54,42 @@ public sealed class ChatTriggerNode : TriggerNode<ChatTriggerPayload, ChatTrigge
         "Chat Trigger",
         "Starts a workflow from an incoming chat message; a chat trigger is a specialized webhook.");
 
-    public override ValueTask<ChatTriggerPayload> ExecuteAsync(ChatTriggerPayload input, WorkflowExecutionContext context)
+    public override ValueTask<Result<ChatTriggerPayload>> ExecuteAsync(ChatTriggerPayload input, WorkflowExecutionContext context)
     {
         ArgumentNullException.ThrowIfNull(input);
-        return ValueTask.FromResult(input);
+        return ValueTask.FromResult(Result<ChatTriggerPayload>.Success(input));
     }
 
     /// <summary>Converts a JSON webhook request into a chat payload (the "chat is a webhook" simplification).</summary>
-    public static ChatTriggerPayload FromWebhook(WebhookRequest request)
+    public static Result<ChatTriggerPayload> FromWebhook(WebhookRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (request.ParseJsonBody() is not JsonObject body)
+        JsonNode? body;
+        try
         {
-            throw new FormatException("The webhook body must be a JSON object to be treated as a chat message.");
+            body = request.ParseJsonBody();
+        }
+        catch (JsonException exception)
+        {
+            return new ValidationError("The webhook body is not valid JSON.", exception.Message);
         }
 
-        var message = body["message"]?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(message))
+        if (body is not JsonObject json)
         {
-            throw new FormatException("The webhook body must contain a non-empty 'message' property.");
+            return new ValidationError("The webhook body must be a JSON object to be treated as a chat message.");
+        }
+
+        if (json["message"] is not JsonValue messageValue
+            || !messageValue.TryGetValue<string>(out var message)
+            || string.IsNullOrWhiteSpace(message))
+        {
+            return new ValidationError("The webhook body must contain a non-empty string 'message' property.");
         }
 
         return new ChatTriggerPayload(
             message,
-            sessionId: body["sessionId"]?.GetValue<string>(),
-            userId: body["userId"]?.GetValue<string>());
+            sessionId: json["sessionId"] is JsonValue session && session.TryGetValue<string>(out var sessionId) ? sessionId : null,
+            userId: json["userId"] is JsonValue user && user.TryGetValue<string>(out var userId) ? userId : null);
     }
 }

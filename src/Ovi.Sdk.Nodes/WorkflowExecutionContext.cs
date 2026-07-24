@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Ovi.Sdk.Nodes;
 
 /// <summary>
@@ -100,6 +103,20 @@ public class WorkflowExecutionContext
     {
         ArgumentNullException.ThrowIfNull(feature);
         _features[typeof(TFeature)] = feature;
+    }
+
+    /// <summary>
+    /// Resolves a logger from the runtime's <see cref="ILoggerFactory"/>, or a no-op logger when
+    /// none is registered — nodes can always log without null checks or configuration.
+    /// </summary>
+    public ILogger<T> GetLogger<T>() =>
+        GetService<ILoggerFactory>() is { } factory ? factory.CreateLogger<T>() : NullLogger<T>.Instance;
+
+    /// <summary>Category-name overload of <see cref="GetLogger{T}"/>.</summary>
+    public ILogger GetLogger(string categoryName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(categoryName);
+        return GetService<ILoggerFactory>() is { } factory ? factory.CreateLogger(categoryName) : NullLogger.Instance;
     }
 
     /// <summary>Resolves an optional service from <see cref="RuntimeServices"/>.</summary>

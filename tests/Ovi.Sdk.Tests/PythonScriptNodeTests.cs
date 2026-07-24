@@ -17,18 +17,19 @@ public class PythonScriptNodeTests
     public async Task Delegates_to_the_engine_with_script_input_and_context_snapshot()
     {
         var engine = new FakePythonScriptEngine(request => new JsonObject { ["total"] = 6 });
-        var op = new PythonScriptNode(PythonScript.FromCode(Code), engine: engine);
+        var node = new PythonScriptNode(PythonScript.FromCode(Code), engine: engine);
 
         var context = WorkflowExecutionContext.CreateBuilder().WithWorkflow("wf-7", "Totals").Build();
         context.WorkflowState.SetValue("attempt", 2);
 
         var input = new JsonObject { ["amounts"] = new JsonArray(1, 2, 3) };
-        var output = await op.ExecuteAsync(input, context);
+        var result = await node.ExecuteAsync(input, context);
 
-        Assert.Equal(6, output!["total"]!.GetValue<int>());
+        Assert.True(result.IsSuccess);
+        Assert.Equal(6, result.Value!["total"]!.GetValue<int>());
 
         var (request, cancellationToken) = Assert.Single(engine.Calls);
-        Assert.Same(op.Script, request.Script);
+        Assert.Same(node.Script, request.Script);
         Assert.Equal("run", request.Script.EntryPoint);
         Assert.Same(input, request.Input);
         Assert.Equal("wf-7", request.Context.Workflow.WorkflowId);
@@ -40,27 +41,42 @@ public class PythonScriptNodeTests
     public async Task Resolves_the_engine_from_runtime_services()
     {
         var engine = new FakePythonScriptEngine(_ => JsonValue.Create("ok"));
-        var op = new PythonScriptNode(PythonScript.FromCode(Code));
+        var node = new PythonScriptNode(PythonScript.FromCode(Code));
         var context = WorkflowExecutionContext.CreateBuilder()
             .WithService<IPythonScriptEngine>(engine)
             .Build();
 
-        var output = await op.ExecuteAsync(null, context);
+        var result = await node.ExecuteAsync(null, context);
 
-        Assert.Equal("ok", output!.GetValue<string>());
+        Assert.Equal("ok", result.Value!.GetValue<string>());
         Assert.Single(engine.Calls);
     }
 
     [Fact]
-    public async Task Fails_clearly_when_no_engine_is_available()
+    public async Task Missing_engine_is_a_resolution_error()
     {
-        var op = new PythonScriptNode(PythonScript.FromCode(Code));
+        var node = new PythonScriptNode(PythonScript.FromCode(Code));
         var context = WorkflowExecutionContext.CreateBuilder().Build();
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => op.ExecuteAsync(null, context).AsTask());
+        var result = await node.ExecuteAsync(null, context);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.IsType<ResolutionError>(result.Error);
         Assert.Contains("Python engine", error.Message);
-        Assert.Contains("docs/python-script-execution.md", error.Message);
+        Assert.Contains("docs/python-script-execution.md", error.Hint);
+    }
+
+    [Fact]
+    public async Task Engine_exceptions_become_execution_errors()
+    {
+        var engine = new FakePythonScriptEngine(_ => throw new InvalidOperationException("Traceback (most recent call last): ..."));
+        var node = new PythonScriptNode(PythonScript.FromCode(Code), engine: engine);
+
+        var result = await node.ExecuteAsync(null, WorkflowExecutionContext.CreateBuilder().Build());
+
+        Assert.True(result.IsFailure);
+        var error = Assert.IsType<ExecutionError>(result.Error);
+        Assert.Contains("Traceback", error.Message);
     }
 
     [Fact]
@@ -111,12 +127,12 @@ public class PythonScriptNodeTests
     [Fact]
     public void Script_nodes_are_ordinary_nodes()
     {
-        var op = new PythonScriptNode(PythonScript.FromCode(Code));
+        var node = new PythonScriptNode(PythonScript.FromCode(Code));
 
-        Assert.IsAssignableFrom<INode>(op);
-        Assert.True(op.Id.IsBuiltIn);
-        Assert.Equal("python-script", op.Id.Name);
-        Assert.Equal(typeof(JsonNode), op.InputType);
-        Assert.Equal(typeof(JsonNode), op.OutputType);
+        Assert.IsAssignableFrom<INode>(node);
+        Assert.True(node.Id.IsBuiltIn);
+        Assert.Equal("python-script", node.Id.Name);
+        Assert.Equal(typeof(JsonNode), node.InputType);
+        Assert.Equal(typeof(JsonNode), node.OutputType);
     }
 }

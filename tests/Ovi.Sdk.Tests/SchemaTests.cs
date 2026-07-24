@@ -58,7 +58,7 @@ public class SchemaTests
     [Fact]
     public void The_yaml_sample_loads_through_the_serializer()
     {
-        var definition = AgentDefinitionSerializer.Load(SamplePath("researcher.yaml"));
+        var definition = AgentDefinitionSerializer.Load(SamplePath("researcher.yaml")).Value;
 
         Assert.Equal(NodeId.Parse("acme/researcher@1.0.0"), definition.Id);
         Assert.Equal("Researcher", definition.Name);
@@ -70,7 +70,7 @@ public class SchemaTests
     public void The_json_sample_loads_through_the_serializer()
     {
         // The $schema property in the sample is tooling metadata; the loader ignores it.
-        var definition = AgentDefinitionSerializer.Load(SamplePath("support-triage.json"));
+        var definition = AgentDefinitionSerializer.Load(SamplePath("support-triage.json")).Value;
 
         Assert.Equal(NodeId.Parse("acme/support-triage@0.1.0"), definition.Id);
         Assert.Equal("Support Triage", definition.Name);
@@ -87,7 +87,7 @@ public class SchemaTests
 
         foreach (var file in new[] { "researcher.yaml", "support-triage.json" })
         {
-            var definition = AgentDefinitionSerializer.Load(SamplePath(file));
+            var definition = AgentDefinitionSerializer.Load(SamplePath(file)).Value;
             Assert.Matches(pattern, definition.Id.ToString());
             foreach (var tool in definition.Tools)
             {

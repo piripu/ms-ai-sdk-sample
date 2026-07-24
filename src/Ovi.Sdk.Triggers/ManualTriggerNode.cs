@@ -18,6 +18,6 @@ public sealed class ManualTriggerNode<TPayload> : TriggerNode<TPayload, TPayload
         "Manual Trigger",
         "Starts a workflow on demand with a caller-supplied payload.");
 
-    public override ValueTask<TPayload> ExecuteAsync(TPayload input, WorkflowExecutionContext context) =>
-        ValueTask.FromResult(input);
+    public override ValueTask<Result<TPayload>> ExecuteAsync(TPayload input, WorkflowExecutionContext context) =>
+        ValueTask.FromResult(Result<TPayload>.Success(input));
 }

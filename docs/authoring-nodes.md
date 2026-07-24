@@ -12,8 +12,8 @@ Derive from the convenience base when the node has real behavior worth a class:
 sealed class UppercaseNode() : Node<string, string>(
     new NodeDescriptor(NodeId.BuiltIn("uppercase"), "Uppercase", "Uppercases the input text."))
 {
-    public override ValueTask<string> ExecuteAsync(string input, WorkflowExecutionContext context)
-        => ValueTask.FromResult(input.ToUpperInvariant());
+    public override ValueTask<Result<string>> ExecuteAsync(string input, WorkflowExecutionContext context)
+        => ValueTask.FromResult(Result<string>.Success(input.ToUpperInvariant()));
 }
 ```
 
@@ -29,7 +29,7 @@ Execute either atomically:
 
 ```csharp
 var context = WorkflowExecutionContext.CreateBuilder().Build();
-var result = await new UppercaseNode().ExecuteAsync("hello", context); // "HELLO"
+var result = await new UppercaseNode().ExecuteAsync("hello", context); // result.Value == "HELLO"
 ```
 
 Conventions: give built-ins `./slug` ids; published nodes need `org/name@semver`. Seal concrete
@@ -45,14 +45,40 @@ base class:
 sealed class RetryNode<TIn, TOut>(INode<TIn, TOut> inner, int attempts)
     : Node<TIn, TOut>(inner.Descriptor)
 {
-    public override async ValueTask<TOut> ExecuteAsync(TIn input, WorkflowExecutionContext context)
+    public override async ValueTask<Result<TOut>> ExecuteAsync(TIn input, WorkflowExecutionContext context)
     {
-        for (var attempt = 1; ; attempt++)
+        Result<TOut> result = new ValidationError("retry attempts must be positive");
+        for (var attempt = 1; attempt <= attempts; attempt++)
         {
-            try { return await inner.ExecuteAsync(input, context); }
-            catch when (attempt < attempts) { }
+            result = await inner.ExecuteAsync(input, context);
+            if (result.IsSuccess) break;
         }
+        return result;
     }
+}
+```
+
+The SDK ships one such decorator: `node.WithLogging()` logs start, success with duration, failure
+results (Warning), and thrown exceptions (Error) — silent unless the runtime registers an
+`ILoggerFactory`.
+
+## Returning errors
+
+Execution APIs return `Result<T>`. Node bodies return values (implicitly converted to success) or
+error objects (implicitly converted to failure) from the closed set:
+
+```csharp
+public override async ValueTask<Result<Report>> ExecuteAsync(Query input, WorkflowExecutionContext context)
+{
+    if (input.Range.IsEmpty)
+        return new ValidationError("The query range must not be empty.");
+
+    var api = context.GetService<IReportApi>();
+    if (api is null)
+        return new ResolutionError("No IReportApi is available.", hint: "Register one in RuntimeServices.");
+
+    try { return await api.BuildAsync(input, context.CancellationToken); }
+    catch (ApiException exception) { return ExecutionError.FromException(exception); }
 }
 ```
 
@@ -65,6 +91,7 @@ public override ValueTask<int> ExecuteAsync(int input, WorkflowExecutionContext 
     context.WorkflowState.SetValue("seen", seen + 1);                  // serialized on write
     context.CancellationToken.ThrowIfCancellationRequested();
     var custom = context.GetFeature<MyCapability>();                   // typed capability, may be null
+    var logger = context.GetLogger<MyNode>();                          // NullLogger without a factory
     ...
 }
 ```
@@ -111,8 +138,8 @@ tools:
 ```
 
 ```csharp
-var definition = AgentDefinitionSerializer.Load("researcher.yaml");
-var agent = AgentNode.FromDefinition(definition, catalog, chatClient);
+var definition = AgentDefinitionSerializer.Load("researcher.yaml").Value;   // failures: ValidationError/ExecutionError
+var agent = AgentNode.FromDefinition(definition, catalog, chatClient).Value; // failure: ResolutionError
 ```
 
 **Chat client resolution** (the standard idiom): fixed on the node → the context's
@@ -135,7 +162,7 @@ Triggers are nodes whose input is the external event. All are manually fireable:
 var payload = ChatTriggerNode.FromWebhook(new WebhookRequest
 {
     Body = """{"message": "Hello!", "sessionId": "s-1"}""",
-});
+}).Value; // a malformed body is a ValidationError failure instead
 var output = await new ChatTriggerNode().FireAsync(payload, context);
 
 var schedule = Schedule.FromCron("0 9 * * MON-FRI");
@@ -147,7 +174,7 @@ await new ScheduleTriggerNode(schedule).FireAsync(ScheduleTick.Manual(), context
 
 ```csharp
 var node = new PythonScriptNode(PythonScript.FromFile("totals.py"));
-var output = await node.ExecuteAsync(input, context);   // engine resolved node → services
+var result = await node.ExecuteAsync(input, context);   // engine resolved node → services; missing = ResolutionError
 ```
 
 The script defines `def run(input, context)`; the SDK ships no engine — tests substitute a fake
@@ -160,6 +187,8 @@ The script defines `def run(input, context)`; the SDK ships no engine — tests 
    untyped `INode` path.
 2. Fake every external collaborator (see `tests/.../Support/FakeChatClient`,
    `FakePythonScriptEngine`) and assert on the recorded calls.
-3. Cover the resolution error (no collaborator anywhere → clear message).
+3. Cover the resolution failure (no collaborator anywhere → `ResolutionError` result with a fix-it hint).
 4. If it reads/writes state, assert through `ToJsonObject()` round-trips.
 5. If it has a declarative form, add schema + samples + lockstep tests (see `SchemaTests`).
+6. Assert error paths on results (`result.IsFailure`, `Assert.IsType<ValidationError>(result.Error)`),
+   and use `CapturingLoggerFactory` (test support) to assert log events where they matter.

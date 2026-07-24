@@ -8,6 +8,7 @@
     <PackageVersion Include="Cronos" Version="0.13.0" />
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.8.1" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.8.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
