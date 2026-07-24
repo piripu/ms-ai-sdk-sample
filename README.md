@@ -233,6 +233,18 @@ var yaml = package.ReadAllText("agents/researcher.yaml");
 Loading packages into a live runtime is deliberately out of scope here — this SDK owns the
 contracts; the runtime comes later.
 
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — layering, core concepts, and the design
+  principles (contracts-first, composition over inheritance, dependency policy).
+- [`docs/authoring-nodes.md`](docs/authoring-nodes.md) — recipes for building nodes, tools,
+  agents, triggers, and script nodes, with the testing checklist.
+- [`docs/packaging.md`](docs/packaging.md) — the `.ovipkg` format specification.
+- [`docs/python-script-execution.md`](docs/python-script-execution.md) — the deferred Python
+  execution-engine plan.
+- [`AGENT.md`](AGENT.md) — grounding instructions for AI agents working on this repository
+  (`CLAUDE.md` points there).
+
 ## Building
 
 ```bash
