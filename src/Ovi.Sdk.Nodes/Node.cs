@@ -1,9 +1,11 @@
 namespace Ovi.Sdk.Nodes;
 
 /// <summary>
-/// The strongly typed base class for workflow nodes. Deriving from this class is how nodes
-/// "define their own input and output": <typeparamref name="TInput"/> and
-/// <typeparamref name="TOutput"/> are the node's data contract with the rest of the workflow.
+/// The optional convenience base class for workflow nodes: implements the untyped
+/// <see cref="INode"/> bridge and identity plumbing so implementations only supply
+/// <see cref="ExecuteAsync(TInput, WorkflowExecutionContext)"/>. The contract to depend on is
+/// <see cref="INode{TInput, TOutput}"/>; nodes can equally be composed from a delegate via
+/// <see cref="Node.Create{TInput, TOutput}(NodeDescriptor, Func{TInput, WorkflowExecutionContext, TOutput})"/>.
 /// </summary>
 /// <remarks>
 /// Nodes are atomic: an instance can be executed (and therefore unit tested) on its own by
@@ -12,7 +14,7 @@ namespace Ovi.Sdk.Nodes;
 /// </remarks>
 /// <typeparam name="TInput">The input the node consumes.</typeparam>
 /// <typeparam name="TOutput">The output the node produces.</typeparam>
-public abstract class Node<TInput, TOutput> : INode
+public abstract class Node<TInput, TOutput> : INode<TInput, TOutput>
 {
     protected Node(NodeDescriptor descriptor)
     {

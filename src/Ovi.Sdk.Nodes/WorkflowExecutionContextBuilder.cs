@@ -8,6 +8,7 @@ namespace Ovi.Sdk.Nodes;
 public sealed class WorkflowExecutionContextBuilder
 {
     private readonly Dictionary<Type, object> _services = [];
+    private readonly List<Action<WorkflowExecutionContext>> _featureSetters = [];
     private WorkflowInfo? _workflow;
     private IServiceProvider? _runtimeServices;
     private IStateStore? _workflowState;
@@ -44,6 +45,14 @@ public sealed class WorkflowExecutionContextBuilder
     {
         ArgumentNullException.ThrowIfNull(instance);
         _services[typeof(TService)] = instance;
+        return this;
+    }
+
+    /// <summary>Attaches a typed capability to the built context (see <see cref="WorkflowExecutionContext.SetFeature{TFeature}"/>).</summary>
+    public WorkflowExecutionContextBuilder WithFeature<TFeature>(TFeature feature) where TFeature : class
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        _featureSetters.Add(context => context.SetFeature(feature));
         return this;
     }
 
@@ -87,13 +96,20 @@ public sealed class WorkflowExecutionContextBuilder
             ? new DictionaryServiceProvider(new Dictionary<Type, object>(_services), _runtimeServices)
             : _runtimeServices;
 
-        return new WorkflowExecutionContext(
+        var context = new WorkflowExecutionContext(
             workflow,
             services,
             _workflowState,
             _globalState,
             _instanceState,
             _cancellationToken);
+
+        foreach (var attachFeature in _featureSetters)
+        {
+            attachFeature(context);
+        }
+
+        return context;
     }
 
     private sealed class DictionaryServiceProvider(

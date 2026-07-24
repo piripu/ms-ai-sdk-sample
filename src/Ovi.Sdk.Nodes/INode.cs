@@ -7,9 +7,10 @@ namespace Ovi.Sdk.Nodes;
 /// <see cref="WorkflowExecutionContext"/>.
 /// </summary>
 /// <remarks>
-/// Implementations should derive from <see cref="Node{TInput, TOutput}"/> rather than implementing
-/// this interface directly. The untyped surface exists so a workflow runtime can wire heterogeneous
-/// nodes together; the typed surface is what makes a node individually testable.
+/// The untyped surface exists so a workflow runtime can wire heterogeneous nodes together; the typed
+/// contract is <see cref="INode{TInput, TOutput}"/>. Most nodes are composed via
+/// <see cref="Node.Create{TInput, TOutput}(NodeDescriptor, Func{TInput, WorkflowExecutionContext, TOutput})"/>
+/// or use the optional <see cref="Node{TInput, TOutput}"/> base class.
 /// </remarks>
 public interface INode
 {
@@ -26,4 +27,18 @@ public interface INode
     /// Executes the node with an untyped input, which must be assignable to <see cref="InputType"/>.
     /// </summary>
     ValueTask<object?> ExecuteAsync(object? input, WorkflowExecutionContext context);
+}
+
+/// <summary>
+/// The strongly typed contract of a workflow node: <typeparamref name="TInput"/> and
+/// <typeparamref name="TOutput"/> are the node's data contract with the rest of the workflow.
+/// This is the surface to depend on — for decorating nodes with cross-cutting behavior (retry,
+/// logging, timeouts) and for executing them atomically in tests.
+/// </summary>
+/// <typeparam name="TInput">The input the node consumes.</typeparam>
+/// <typeparam name="TOutput">The output the node produces.</typeparam>
+public interface INode<TInput, TOutput> : INode
+{
+    /// <summary>Executes the node against the shared workflow execution context.</summary>
+    ValueTask<TOutput> ExecuteAsync(TInput input, WorkflowExecutionContext context);
 }

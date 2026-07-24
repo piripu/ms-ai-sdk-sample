@@ -70,7 +70,7 @@ public class AgentNodeTests
     public async Task Exposes_tools_to_the_model_as_aifunctions()
     {
         var chatClient = FakeChatClient.RespondingWith("done");
-        var echoTool = DelegateTool.Create("./echo", "Echo", "Echoes text back.", (string text) => text);
+        var echoTool = Tool.FromDelegate("./echo", "Echo", "Echoes text back.", (string text) => text);
         var agent = new AgentNode(Descriptor, tools: [echoTool], chatClient: chatClient, autoInvokeFunctions: false);
 
         await agent.ExecuteAsync("run", WorkflowExecutionContext.CreateBuilder().Build());
@@ -85,7 +85,7 @@ public class AgentNodeTests
     public async Task Automatically_invokes_tool_calls()
     {
         var invoked = false;
-        var addTool = DelegateTool.Create("./add", "Add", "Adds two integers.", (int a, int b) =>
+        var addTool = Tool.FromDelegate("./add", "Add", "Adds two integers.", (int a, int b) =>
         {
             invoked = true;
             return a + b;
@@ -143,7 +143,7 @@ public class AgentNodeTests
         // The catalog holds a newer version; resolution falls back to the version-insensitive match.
         var catalog = new ToolCatalog
         {
-            DelegateTool.Create("acme/web-search@2.1.0", "Web Search", "Searches the web.", (string query) => query),
+            Tool.FromDelegate("acme/web-search@2.1.0", "Web Search", "Searches the web.", (string query) => query),
         };
 
         var agent = AgentNode.FromDefinition(definition, catalog);
@@ -166,5 +166,24 @@ public class AgentNodeTests
         Assert.Contains("acme/missing@1.0.0", withEmptyCatalog.Message);
 
         Assert.Throws<InvalidOperationException>(() => AgentNode.FromDefinition(definition));
+    }
+
+    [Fact]
+    public async Task Chat_capability_composes_onto_any_context_as_a_feature()
+    {
+        var chatClient = FakeChatClient.RespondingWith("Feature answer.");
+        var agent = new AgentNode(Descriptor, "Be helpful.");
+
+        // No context subclassing: a plain context with the chat feature attached behaves like
+        // an AgentWorkflowExecutionContext.
+        var context = WorkflowExecutionContext.CreateBuilder()
+            .WithFeature(new AgentChatFeature(chatClient))
+            .Build();
+
+        var response = await agent.ExecuteAsync("Question?", context);
+
+        Assert.Equal("Feature answer.", response.Text);
+        var chat = context.GetRequiredFeature<AgentChatFeature>();
+        Assert.Equal(2, chat.ChatHistory.Count); // user turn + assistant turn
     }
 }

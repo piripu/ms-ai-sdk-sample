@@ -13,7 +13,7 @@ ships.
 | Project | What it holds |
 |---|---|
 | `Ovi.Sdk.Nodes` | The core: `Node<TInput, TOutput>`, node identity (`NodeId`), `WorkflowExecutionContext` + serializable state stores. No dependencies. |
-| `Ovi.Sdk.Tools` | `ITool` — Ovi identity around a Microsoft.Extensions.AI `AIFunction`. `DelegateTool` (from a .NET delegate), `AIFunctionTool` (wrap any `AIFunction`; the future MCP bridge), `ToolCatalog`. |
+| `Ovi.Sdk.Tools` | `ITool` — Ovi identity composed with a Microsoft.Extensions.AI `AIFunction`. One sealed `Tool` built via `Tool.FromDelegate(…)` or `Tool.FromAIFunction(…)` (the future MCP bridge), plus `ToolCatalog`. |
 | `Ovi.Sdk.Agents` | `AgentNode` (a node with tool connections), YAML/JSON `AgentDefinition`s, `AgentWorkflowExecutionContext` (chat client + chat history), and the intentionally incomplete `MultipartHttpChatClient`. |
 | `Ovi.Sdk.Triggers` | Workflow starting points: chat (webhook-shaped), webhook, schedule (interval or cron), manual — all manually fireable for testing. |
 | `Ovi.Sdk.Packaging` | The `.ovipkg` format: a zip with a `manifest.json`, carrying nodes/agents/tools/triggers. Authoring (`OviPackageBuilder`) and reading (`OviPackage`). |
@@ -51,6 +51,15 @@ var context = WorkflowExecutionContext.CreateBuilder().Build();
 var result = await new UppercaseNode().ExecuteAsync("hello", context); // "HELLO"
 ```
 
+The typed contract is `INode<TIn, TOut>` (with `Node<TIn, TOut>` as an optional convenience base),
+and nodes can be composed straight from delegates — no subclassing:
+
+```csharp
+var reverse = Node.Create(
+    new NodeDescriptor(NodeId.BuiltIn("reverse"), "Reverse", "Reverses text."),
+    (string input, WorkflowExecutionContext _) => new string(input.Reverse().ToArray()));
+```
+
 Every node also has an untyped `INode` surface (`ExecuteAsync(object?, context)`) that a
 workflow runtime uses to wire heterogeneous nodes together.
 
@@ -86,9 +95,11 @@ State stores are **serializable by construction**: values are serialized to JSON
 fast on non-serializable values) and the whole store exports/imports via `ToJsonObject()` /
 `InMemoryStateStore.FromJsonObject()`.
 
-`AgentWorkflowExecutionContext` derives from the shared context and adds the current run's
-`ChatClient` (`IChatClient`) and mutable `ChatHistory` — future agent-scoped capabilities (memory)
-land there too.
+Run capabilities compose onto the context as typed **features** (`SetFeature<T>` / `GetFeature<T>`,
+or `WithFeature` on the builder) instead of context subclassing. The chat capability is
+`AgentChatFeature` (`ChatClient` + mutable `ChatHistory`); `AgentWorkflowExecutionContext` remains
+as thin sugar that attaches it. Future capabilities (memory) are additional features, so they stack
+freely on one context.
 
 ### Agents
 
@@ -118,8 +129,8 @@ tools:
 var definition = AgentDefinitionSerializer.Load("researcher.yaml"); // or FromYaml/FromJson
 var catalog = new ToolCatalog
 {
-    DelegateTool.Create("./echo", "Echo", "Echoes text back.", (string text) => text),
-    DelegateTool.Create("acme/web-search@2.0.0", "Web Search", "Searches the web.", Search),
+    Tool.FromDelegate("./echo", "Echo", "Echoes text back.", (string text) => text),
+    Tool.FromDelegate("acme/web-search@2.0.0", "Web Search", "Searches the web.", Search),
 };
 var agent = AgentNode.FromDefinition(definition, catalog, chatClient);
 
@@ -127,8 +138,8 @@ var response = await agent.ExecuteAsync("What is Ovi?", context);
 Console.WriteLine(response.Text);
 ```
 
-The chat client resolves per execution: fixed on the node → `AgentWorkflowExecutionContext.ChatClient`
-→ `IChatClient` in `RuntimeServices`.
+The chat client resolves per execution: fixed on the node → the context's `AgentChatFeature`
+(attached directly or via `AgentWorkflowExecutionContext`) → `IChatClient` in `RuntimeServices`.
 
 #### Definition schema
 
@@ -160,7 +171,7 @@ A tool is Ovi identity (`NodeDescriptor`) around an `AIFunction`. The id's slug 
 LLM-facing function name; the description becomes the function description.
 
 MCP is a planned extension, not a rework: MCP client tools *are* `AIFunction`s, so they'll arrive by
-wrapping them in `AIFunctionTool` — agents won't change.
+wrapping them via `Tool.FromAIFunction` — agents won't change.
 
 ### Triggers
 
@@ -235,6 +246,6 @@ documentation for every area above.
 ## Deliberately deferred
 
 - **Runtime**: workflow graphs, node wiring, scheduling, package loading/activation.
-- **MCP tools**: arrive via `AIFunctionTool` once an MCP client is wired in.
+- **MCP tools**: arrive via `Tool.FromAIFunction` once an MCP client is wired in.
 - **Agent memory**: lands on `AgentWorkflowExecutionContext` next to chat history.
 - **`MultipartHttpChatClient` response contract**: `ParseResponse`, streaming, binary parts.

@@ -102,4 +102,22 @@ public class NodeAtomicityTests
         cts.Cancel();
         Assert.True(context.CancellationToken.IsCancellationRequested);
     }
+
+    [Fact]
+    public async Task Nodes_compose_from_delegates_without_subclassing()
+    {
+        var reverse = Node.Create(
+            new NodeDescriptor(NodeId.BuiltIn("reverse"), "Reverse", "Reverses text."),
+            (string input, WorkflowExecutionContext _) => new string(input.Reverse().ToArray()));
+
+        INode<string, string> typed = reverse;
+        var context = WorkflowExecutionContext.CreateBuilder().Build();
+
+        Assert.Equal("olleh", await typed.ExecuteAsync("hello", context));
+        Assert.Equal("reverse", reverse.Id.Name);
+
+        // The untyped runtime surface comes along for free.
+        INode untyped = reverse;
+        Assert.Equal("cba", await untyped.ExecuteAsync("abc", context));
+    }
 }

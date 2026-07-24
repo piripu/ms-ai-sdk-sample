@@ -11,12 +11,16 @@ namespace Ovi.Sdk.Nodes;
 /// <item><see cref="GlobalState"/> — persisted across runs, shared by the whole runtime.</item>
 /// <item><see cref="InstanceState"/> — persisted across runs, scoped to the node's package instance.</item>
 /// </list>
-/// Specialized runtimes derive richer contexts from this type (e.g.
-/// <c>AgentWorkflowExecutionContext</c> in <c>Ovi.Sdk.Agents</c>, which adds the run's chat client and
-/// chat history).
+/// Run capabilities compose onto the context as typed <b>features</b>
+/// (<see cref="SetFeature{TFeature}"/>/<see cref="GetFeature{TFeature}"/>) rather than through
+/// context subclassing, so a run can carry any combination of capabilities (chat, memory, …).
+/// Derived contexts such as <c>AgentWorkflowExecutionContext</c> in <c>Ovi.Sdk.Agents</c> are thin
+/// sugar that registers a feature.
 /// </remarks>
 public class WorkflowExecutionContext
 {
+    private readonly Dictionary<Type, object> _features;
+
     public WorkflowExecutionContext(
         WorkflowInfo workflow,
         IServiceProvider? runtimeServices = null,
@@ -34,11 +38,12 @@ public class WorkflowExecutionContext
         InstanceState = instanceState ?? new InMemoryStateStore();
         CancellationToken = cancellationToken;
         Properties = new Dictionary<string, object?>(StringComparer.Ordinal);
+        _features = [];
     }
 
     /// <summary>
     /// Copies another context. Derived contexts use this to wrap a base context while sharing its
-    /// state stores and <see cref="Properties"/> bag.
+    /// state stores, <see cref="Properties"/> bag and features.
     /// </summary>
     protected WorkflowExecutionContext(WorkflowExecutionContext other)
     {
@@ -51,6 +56,7 @@ public class WorkflowExecutionContext
         InstanceState = other.InstanceState;
         CancellationToken = other.CancellationToken;
         Properties = other.Properties;
+        _features = other._features;
     }
 
     /// <summary>Information about the workflow and the current run.</summary>
@@ -76,6 +82,25 @@ public class WorkflowExecutionContext
     /// ("others as necessary"). Shared with derived contexts created via the copy constructor.
     /// </summary>
     public IDictionary<string, object?> Properties { get; }
+
+    /// <summary>Gets a typed capability attached to this run, or <see langword="null"/> when absent.</summary>
+    public TFeature? GetFeature<TFeature>() where TFeature : class =>
+        _features.TryGetValue(typeof(TFeature), out var feature) ? (TFeature)feature : null;
+
+    /// <summary>Gets a typed capability attached to this run, throwing when absent.</summary>
+    public TFeature GetRequiredFeature<TFeature>() where TFeature : class =>
+        GetFeature<TFeature>()
+        ?? throw new InvalidOperationException($"No feature of type {typeof(TFeature)} is attached to the execution context.");
+
+    /// <summary>
+    /// Attaches (or replaces) a typed capability on this run. Features are shared with contexts
+    /// created from this one via the copy constructor.
+    /// </summary>
+    public void SetFeature<TFeature>(TFeature feature) where TFeature : class
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        _features[typeof(TFeature)] = feature;
+    }
 
     /// <summary>Resolves an optional service from <see cref="RuntimeServices"/>.</summary>
     public T? GetService<T>() where T : class => RuntimeServices.GetService(typeof(T)) as T;
