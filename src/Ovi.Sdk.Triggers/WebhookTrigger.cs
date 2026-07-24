@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Text.Json.Nodes;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Triggers;
 
@@ -31,17 +31,17 @@ public sealed record WebhookRequest
 /// A trigger fired by an incoming HTTP request. The runtime (or a test) delivers a
 /// <see cref="WebhookRequest"/>; the base implementation passes it through, and derived triggers
 /// override <see cref="ExecuteAsync"/> to normalize the request into a richer payload — see
-/// <see cref="ChatTriggerOperator"/> for the canonical example.
+/// <see cref="ChatTriggerNode"/> for the canonical example.
 /// </summary>
-public class WebhookTriggerOperator : TriggerOperator<WebhookRequest, WebhookRequest>
+public class WebhookTriggerNode : TriggerNode<WebhookRequest, WebhookRequest>
 {
-    public WebhookTriggerOperator(OperatorDescriptor? descriptor = null)
+    public WebhookTriggerNode(NodeDescriptor? descriptor = null)
         : base(descriptor ?? DefaultDescriptor)
     {
     }
 
-    public static OperatorDescriptor DefaultDescriptor { get; } = new(
-        OperatorId.BuiltIn("webhook-trigger"),
+    public static NodeDescriptor DefaultDescriptor { get; } = new(
+        NodeId.BuiltIn("webhook-trigger"),
         "Webhook Trigger",
         "Starts a workflow from an incoming HTTP request.");
 

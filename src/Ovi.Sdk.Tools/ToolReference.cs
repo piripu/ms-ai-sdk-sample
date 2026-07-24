@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Tools;
 
@@ -19,7 +19,7 @@ public sealed record ToolReference
     }
 
     [SetsRequiredMembers]
-    public ToolReference(OperatorId id, JsonObject? options = null)
+    public ToolReference(NodeId id, JsonObject? options = null)
     {
         ArgumentNullException.ThrowIfNull(id);
         Id = id;
@@ -27,12 +27,12 @@ public sealed record ToolReference
     }
 
     /// <summary>The referenced tool's identity.</summary>
-    public required OperatorId Id { get; init; }
+    public required NodeId Id { get; init; }
 
     /// <summary>Free-form, tool-specific configuration.</summary>
     public JsonObject? Options { get; init; }
 
-    public static implicit operator ToolReference(string id) => new(OperatorId.Parse(id));
+    public static implicit operator ToolReference(string id) => new(NodeId.Parse(id));
 
     public override string ToString() => Id.ToString();
 }
@@ -47,14 +47,14 @@ public sealed class ToolReferenceJsonConverter : JsonConverter<ToolReference>
             case JsonTokenType.String:
             {
                 var text = reader.GetString()!;
-                return OperatorId.TryParse(text, out var id)
+                return NodeId.TryParse(text, out var id)
                     ? new ToolReference(id)
                     : throw new JsonException($"'{text}' is not a valid tool id.");
             }
 
             case JsonTokenType.StartObject:
             {
-                OperatorId? id = null;
+                NodeId? id = null;
                 JsonObject? toolOptions = null;
 
                 while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
@@ -69,7 +69,7 @@ public sealed class ToolReferenceJsonConverter : JsonConverter<ToolReference>
 
                     if (string.Equals(propertyName, "id", StringComparison.OrdinalIgnoreCase))
                     {
-                        id = JsonSerializer.Deserialize<OperatorId>(ref reader, options);
+                        id = JsonSerializer.Deserialize<NodeId>(ref reader, options);
                     }
                     else if (string.Equals(propertyName, "options", StringComparison.OrdinalIgnoreCase))
                     {

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.AI;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Agents;
 

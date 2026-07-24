@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Ovi.Sdk.Operators;
+namespace Ovi.Sdk.Nodes;
 
 /// <summary>
 /// A Semantic Versioning 2.0.0 version (<see href="https://semver.org"/>):

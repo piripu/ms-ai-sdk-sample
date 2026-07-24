@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using Ovi.Sdk.Agents;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Ovi.Sdk.Packaging;
 using Xunit;
 
@@ -12,7 +12,7 @@ public class PackagingTests
     public void A_package_round_trips_as_a_renamed_zip()
     {
         var definition = new AgentDefinition(
-            OperatorId.Parse("acme/researcher@1.0.0"),
+            NodeId.Parse("acme/researcher@1.0.0"),
             "Researcher",
             "Researches things.",
             "Be thorough.");
@@ -23,9 +23,9 @@ public class PackagingTests
         {
             var path = Path.Combine(directory.FullName, "starter" + OviPackageFormat.FileExtension);
 
-            new OviPackageBuilder(OperatorId.Parse("acme/starter-pack@0.1.0"), "Starter Pack", "A demo package.")
+            new OviPackageBuilder(NodeId.Parse("acme/starter-pack@0.1.0"), "Starter Pack", "A demo package.")
                 .AddTextFile("agents/researcher.yaml", yaml)
-                .AddOperator(new PackagedOperatorEntry(definition.ToDescriptor(), PackagedOperatorKind.Agent, "agents/researcher.yaml"))
+                .AddNode(new PackagedNodeEntry(definition.ToDescriptor(), PackagedNodeKind.Agent, "agents/researcher.yaml"))
                 .Save(path);
 
             // An .ovipkg is a plain zip wearing a different extension.
@@ -35,12 +35,12 @@ public class PackagingTests
             }
 
             using var package = OviPackage.Open(path);
-            Assert.Equal(OperatorId.Parse("acme/starter-pack@0.1.0"), package.Manifest.PackageId);
+            Assert.Equal(NodeId.Parse("acme/starter-pack@0.1.0"), package.Manifest.PackageId);
             Assert.Equal("Starter Pack", package.Manifest.Name);
             Assert.Equal(OviPackageFormat.CurrentManifestVersion, package.Manifest.ManifestVersion);
 
-            var entry = Assert.Single(package.Manifest.Operators);
-            Assert.Equal(PackagedOperatorKind.Agent, entry.Kind);
+            var entry = Assert.Single(package.Manifest.Nodes);
+            Assert.Equal(PackagedNodeKind.Agent, entry.Kind);
             Assert.Equal("agents/researcher.yaml", entry.Path);
             Assert.Equal(definition.Id, entry.Id);
 
@@ -60,12 +60,12 @@ public class PackagingTests
     }
 
     [Fact]
-    public void Save_rejects_operator_entries_referencing_missing_files()
+    public void Save_rejects_node_entries_referencing_missing_files()
     {
-        var builder = new OviPackageBuilder(OperatorId.Parse("acme/broken@1.0.0"), "Broken")
-            .AddOperator(new PackagedOperatorEntry(
-                new OperatorDescriptor(OperatorId.Parse("acme/ghost@1.0.0"), "Ghost"),
-                PackagedOperatorKind.Agent,
+        var builder = new OviPackageBuilder(NodeId.Parse("acme/broken@1.0.0"), "Broken")
+            .AddNode(new PackagedNodeEntry(
+                new NodeDescriptor(NodeId.Parse("acme/ghost@1.0.0"), "Ghost"),
+                PackagedNodeKind.Agent,
                 "agents/ghost.yaml"));
 
         using var stream = new MemoryStream();
@@ -76,14 +76,14 @@ public class PackagingTests
     [Fact]
     public void The_manifest_entry_name_is_reserved()
     {
-        var builder = new OviPackageBuilder(OperatorId.Parse("acme/pack@1.0.0"), "Pack");
+        var builder = new OviPackageBuilder(NodeId.Parse("acme/pack@1.0.0"), "Pack");
         Assert.Throws<ArgumentException>(() => builder.AddTextFile("manifest.json", "{}"));
     }
 
     [Fact]
     public void Package_paths_may_not_escape_the_package()
     {
-        var builder = new OviPackageBuilder(OperatorId.Parse("acme/pack@1.0.0"), "Pack");
+        var builder = new OviPackageBuilder(NodeId.Parse("acme/pack@1.0.0"), "Pack");
         Assert.Throws<ArgumentException>(() => builder.AddTextFile("../evil.txt", "boom"));
         Assert.Throws<ArgumentException>(() => builder.AddTextFile("a/../../evil.txt", "boom"));
     }
@@ -104,20 +104,20 @@ public class PackagingTests
     [Fact]
     public void The_manifest_serializes_with_camel_case_and_string_ids()
     {
-        var manifest = new OviPackageBuilder(OperatorId.Parse("acme/starter-pack@0.1.0"), "Starter Pack")
-            .AddOperator(new PackagedOperatorEntry(
-                new OperatorDescriptor(OperatorId.BuiltIn("uppercase"), "Uppercase"),
-                PackagedOperatorKind.Operator))
+        var manifest = new OviPackageBuilder(NodeId.Parse("acme/starter-pack@0.1.0"), "Starter Pack")
+            .AddNode(new PackagedNodeEntry(
+                new NodeDescriptor(NodeId.BuiltIn("uppercase"), "Uppercase"),
+                PackagedNodeKind.Node))
             .BuildManifest();
 
         var json = manifest.ToJson();
 
         Assert.Contains("\"packageId\": \"acme/starter-pack@0.1.0\"", json);
-        Assert.Contains("\"kind\": \"operator\"", json);
+        Assert.Contains("\"kind\": \"node\"", json);
         Assert.Contains("\"./uppercase\"", json);
 
         var parsed = OviPackageManifest.FromJson(json);
         Assert.Equal(manifest.PackageId, parsed.PackageId);
-        Assert.Single(parsed.Operators);
+        Assert.Single(parsed.Nodes);
     }
 }

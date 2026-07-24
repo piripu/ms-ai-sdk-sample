@@ -1,8 +1,8 @@
-namespace Ovi.Sdk.Operators;
+namespace Ovi.Sdk.Nodes;
 
 /// <summary>
 /// Builds <see cref="WorkflowExecutionContext"/> instances with sensible defaults, so a single
-/// operator can be executed — and unit tested — without a workflow runtime. Every unset piece falls
+/// node can be executed — and unit tested — without a workflow runtime. Every unset piece falls
 /// back to an empty in-memory equivalent.
 /// </summary>
 public sealed class WorkflowExecutionContextBuilder

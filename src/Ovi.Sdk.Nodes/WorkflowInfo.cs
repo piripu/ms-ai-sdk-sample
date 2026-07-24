@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Ovi.Sdk.Operators;
+namespace Ovi.Sdk.Nodes;
 
 /// <summary>
-/// Describes the workflow (and the specific run of it) an operator is executing in.
+/// Describes the workflow (and the specific run of it) a node is executing in.
 /// </summary>
 public sealed record WorkflowInfo
 {

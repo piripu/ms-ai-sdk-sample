@@ -1,22 +1,22 @@
 using Microsoft.Extensions.AI;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Tools;
 
 /// <summary>Base class for Ovi tools. See <see cref="ITool"/>.</summary>
 public abstract class Tool : ITool
 {
-    protected Tool(OperatorDescriptor descriptor)
+    protected Tool(NodeDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         Descriptor = descriptor;
     }
 
     /// <inheritdoc />
-    public OperatorDescriptor Descriptor { get; }
+    public NodeDescriptor Descriptor { get; }
 
     /// <summary>The tool's identity (<c>org/name@version</c>).</summary>
-    public OperatorId Id => Descriptor.Id;
+    public NodeId Id => Descriptor.Id;
 
     /// <summary>The tool's display name.</summary>
     public string Name => Descriptor.Name;

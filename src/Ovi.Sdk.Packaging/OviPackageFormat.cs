@@ -2,7 +2,7 @@ namespace Ovi.Sdk.Packaging;
 
 /// <summary>
 /// Constants of the <c>.ovipkg</c> package format. A package is an ordinary zip archive with the
-/// <c>.ovipkg</c> extension and a <c>manifest.json</c> at its root describing the operators inside.
+/// <c>.ovipkg</c> extension and a <c>manifest.json</c> at its root describing the nodes inside.
 /// </summary>
 public static class OviPackageFormat
 {

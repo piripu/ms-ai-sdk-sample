@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/Ovi.Sdk.Operators/Ovi.Sdk.Operators.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Tools/Ovi.Sdk.Tools.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Agents/Ovi.Sdk.Agents.csproj" />
     <ProjectReference Include="../../src/Ovi.Sdk.Triggers/Ovi.Sdk.Triggers.csproj" />

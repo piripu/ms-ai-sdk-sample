@@ -1,5 +1,5 @@
 using Microsoft.Extensions.AI;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Tools;
 
@@ -12,7 +12,7 @@ public sealed class AIFunctionTool : Tool
 {
     private readonly AIFunction _function;
 
-    public AIFunctionTool(OperatorDescriptor descriptor, AIFunction function)
+    public AIFunctionTool(NodeDescriptor descriptor, AIFunction function)
         : base(descriptor)
     {
         ArgumentNullException.ThrowIfNull(function);

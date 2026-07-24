@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 namespace Ovi.Sdk.Agents;
 
 /// <summary>
-/// The input an <see cref="AgentOperator"/> consumes: either a plain user <see cref="Prompt"/>, a
+/// The input an <see cref="AgentNode"/> consumes: either a plain user <see cref="Prompt"/>, a
 /// list of chat <see cref="Messages"/>, or both (messages first, prompt appended as a user turn).
 /// </summary>
 public sealed record AgentRequest
@@ -18,7 +18,7 @@ public sealed record AgentRequest
 }
 
 /// <summary>
-/// The output an <see cref="AgentOperator"/> produces. <see cref="Text"/> is the assistant's reply;
+/// The output an <see cref="AgentNode"/> produces. <see cref="Text"/> is the assistant's reply;
 /// <see cref="RawResponse"/> exposes the underlying Microsoft.Extensions.AI response when richer
 /// data (usage, tool calls, additional messages) is needed.
 /// </summary>

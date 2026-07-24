@@ -1,5 +1,5 @@
 using Microsoft.Extensions.AI;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 
 namespace Ovi.Sdk.Tools;
 
@@ -13,7 +13,7 @@ public sealed class DelegateTool : Tool
     private readonly Delegate _implementation;
     private AIFunction? _function;
 
-    public DelegateTool(OperatorDescriptor descriptor, Delegate implementation)
+    public DelegateTool(NodeDescriptor descriptor, Delegate implementation)
         : base(descriptor)
     {
         ArgumentNullException.ThrowIfNull(implementation);
@@ -21,8 +21,8 @@ public sealed class DelegateTool : Tool
     }
 
     /// <summary>Convenience factory for the common "id + description + delegate" case.</summary>
-    public static DelegateTool Create(OperatorId id, string displayName, string description, Delegate implementation) =>
-        new(new OperatorDescriptor(id, displayName, description), implementation);
+    public static DelegateTool Create(NodeId id, string displayName, string description, Delegate implementation) =>
+        new(new NodeDescriptor(id, displayName, description), implementation);
 
     public override AIFunction AsAIFunction() =>
         _function ??= AIFunctionFactory.Create(_implementation, new AIFunctionFactoryOptions

@@ -1,25 +1,25 @@
 using Microsoft.Extensions.AI;
-using Ovi.Sdk.Operators;
+using Ovi.Sdk.Nodes;
 using Ovi.Sdk.Tools;
 
 namespace Ovi.Sdk.Agents;
 
 /// <summary>
-/// An agent as a workflow node. An agent is an <see cref="Operator{TInput, TOutput}"/> with extra
+/// An agent as a workflow node. An agent is a <see cref="Node{TInput, TOutput}"/> with extra
 /// connections: the <see cref="Tools"/> it may call (exposed to the model as
 /// Microsoft.Extensions.AI <see cref="AIFunction"/>s) and — in the future — memory.
 /// </summary>
 /// <remarks>
-/// The chat client is resolved per execution, in priority order: the client fixed on this operator,
+/// The chat client is resolved per execution, in priority order: the client fixed on this node,
 /// then <see cref="AgentWorkflowExecutionContext.ChatClient"/>, then an <see cref="IChatClient"/>
 /// registered in <see cref="WorkflowExecutionContext.RuntimeServices"/>. Any
 /// <see cref="IChatClient"/> works: an Ollama client, a cloud provider's client, or the SDK's own
 /// (intentionally incomplete) <see cref="MultipartHttpChatClient"/>.
 /// </remarks>
-public class AgentOperator : Operator<AgentRequest, AgentResponse>
+public class AgentNode : Node<AgentRequest, AgentResponse>
 {
-    public AgentOperator(
-        OperatorDescriptor descriptor,
+    public AgentNode(
+        NodeDescriptor descriptor,
         string? instructions = null,
         IEnumerable<ITool>? tools = null,
         IChatClient? chatClient = null,
@@ -38,7 +38,7 @@ public class AgentOperator : Operator<AgentRequest, AgentResponse>
     /// <summary>The tools this agent may call.</summary>
     public IReadOnlyList<ITool> Tools { get; }
 
-    /// <summary>A chat client fixed on this operator; when null, the client is resolved from the context.</summary>
+    /// <summary>A chat client fixed on this node; when null, the client is resolved from the context.</summary>
     public IChatClient? ChatClient { get; }
 
     /// <summary>
@@ -51,7 +51,7 @@ public class AgentOperator : Operator<AgentRequest, AgentResponse>
     /// Materializes an agent from its declarative <see cref="AgentDefinition"/>, resolving tool
     /// references through <paramref name="toolCatalog"/>.
     /// </summary>
-    public static AgentOperator FromDefinition(
+    public static AgentNode FromDefinition(
         AgentDefinition definition,
         IToolCatalog? toolCatalog = null,
         IChatClient? chatClient = null,
@@ -72,7 +72,7 @@ public class AgentOperator : Operator<AgentRequest, AgentResponse>
             tools.Add(tool);
         }
 
-        return new AgentOperator(definition.ToDescriptor(), definition.Instructions, tools, chatClient, autoInvokeFunctions);
+        return new AgentNode(definition.ToDescriptor(), definition.Instructions, tools, chatClient, autoInvokeFunctions);
     }
 
     public override async ValueTask<AgentResponse> ExecuteAsync(AgentRequest input, WorkflowExecutionContext context)
@@ -85,7 +85,7 @@ public class AgentOperator : Operator<AgentRequest, AgentResponse>
             ?? agentContext?.ChatClient
             ?? context.GetService<IChatClient>()
             ?? throw new InvalidOperationException(
-                $"Agent '{Id}' has no chat client. Provide one on the operator, use an AgentWorkflowExecutionContext, or register an IChatClient in RuntimeServices.");
+                $"Agent '{Id}' has no chat client. Provide one on the node, use an AgentWorkflowExecutionContext, or register an IChatClient in RuntimeServices.");
 
         var requestMessages = BuildRequestMessages(input);
 
