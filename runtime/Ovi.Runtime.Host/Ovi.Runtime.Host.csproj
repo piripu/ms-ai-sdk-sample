@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Single-workflow runtime host: unifies manual/webhook/schedule triggers behind one
+      entry point, with a middleware pipeline, adaptive timeouts, and graceful process shutdown. A
+      library, not a process — hosting binds it to exactly one workflow or agent.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Ovi.Sdk.Nodes/Ovi.Sdk.Nodes.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Tools/Ovi.Sdk.Tools.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Agents/Ovi.Sdk.Agents.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Triggers/Ovi.Sdk.Triggers.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Workflows/Ovi.Sdk.Workflows.csproj" />
+    <ProjectReference Include="../../src/Ovi.Sdk.Packaging/Ovi.Sdk.Packaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+  </ItemGroup>
+
+</Project>

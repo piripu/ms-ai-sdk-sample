@@ -26,4 +26,7 @@ public sealed class AgentChatFeature
     /// incoming request messages and the model's response messages after each turn.
     /// </summary>
     public IList<ChatMessage> ChatHistory { get; }
+
+    /// <summary>The most recent message in <see cref="ChatHistory"/>, or <see langword="null"/> when it's empty.</summary>
+    public ChatMessage? LastMessage => ChatHistory.Count > 0 ? ChatHistory[^1] : null;
 }
