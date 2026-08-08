@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using Ovi.Sdk.Nodes;
+using Ovi.Sdk.Packaging.PublishPipeline;
 
 namespace Ovi.Sdk.Packaging;
 
@@ -19,10 +20,12 @@ namespace Ovi.Sdk.Packaging;
 public sealed class OviPackageBuilder
 {
     private readonly List<PackagedNodeEntry> _nodes = [];
+    private readonly List<PackageReference> _dependencies = [];
     private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
     private readonly NodeId _packageId;
     private readonly string _name;
     private readonly string? _description;
+    private NodeId? _defaultEntry;
 
     public OviPackageBuilder(NodeId packageId, string name, string? description = null)
     {
@@ -65,47 +68,52 @@ public sealed class OviPackageBuilder
         return AddFile(packagePath, Encoding.UTF8.GetBytes(content));
     }
 
+    /// <summary>Declares a dependency on another package, by its package id — see <see cref="OviPackageManifest.Dependencies"/>.</summary>
+    public OviPackageBuilder AddDependency(NodeId packageId)
+    {
+        ArgumentNullException.ThrowIfNull(packageId);
+        _dependencies.Add(new PackageReference(packageId));
+        return this;
+    }
+
+    /// <summary>Marks which node entry is this package's default workflow/agent — see <see cref="OviPackageManifest.DefaultEntry"/>.</summary>
+    public OviPackageBuilder WithDefaultEntry(NodeId entryId)
+    {
+        ArgumentNullException.ThrowIfNull(entryId);
+        _defaultEntry = entryId;
+        return this;
+    }
+
     /// <summary>The manifest as it would be written by <see cref="Save(Stream)"/>.</summary>
     public OviPackageManifest BuildManifest() => new(_packageId, _name, _description)
     {
         Nodes = [.. _nodes],
+        Dependencies = [.. _dependencies],
+        DefaultEntry = _defaultEntry,
     };
 
-    /// <summary>Writes the package to a stream as a zip archive with a root <c>manifest.json</c>.</summary>
-    public void Save(Stream destination)
+    /// <summary>Writes the package to a stream as a zip archive with a root <c>manifest.json</c>, running <see cref="PackagePublishPipeline.Default"/>.</summary>
+    public void Save(Stream destination) => Save(destination, PackagePublishPipeline.Default);
+
+    /// <summary>Writes the package to a stream, running <paramref name="pipeline"/> instead of the default publish steps.</summary>
+    public void Save(Stream destination, PackagePublishPipeline pipeline)
     {
         ArgumentNullException.ThrowIfNull(destination);
-
-        var missing = _nodes
-            .Where(entry => entry.Path is not null && !_files.ContainsKey(entry.Path))
-            .Select(entry => $"{entry.Id} -> {entry.Path}")
-            .ToArray();
-        if (missing.Length > 0)
-        {
-            throw new InvalidOperationException(
-                $"Node entries reference files that were not added to the package: {string.Join(", ", missing)}.");
-        }
+        ArgumentNullException.ThrowIfNull(pipeline);
 
         using var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true);
-
-        var manifestEntry = archive.CreateEntry(OviPackageFormat.ManifestEntryName);
-        using (var writer = new StreamWriter(manifestEntry.Open(), Encoding.UTF8))
-        {
-            writer.Write(BuildManifest().ToJson());
-        }
-
-        foreach (var (path, content) in _files.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            var entry = archive.CreateEntry(path);
-            using var entryStream = entry.Open();
-            entryStream.Write(content);
-        }
+        var context = new PackagePublishContext(BuildManifest(), _files, archive);
+        pipeline.Run(context);
     }
 
-    /// <summary>Writes the package to a file, conventionally named <c>*.ovipkg</c>.</summary>
-    public void Save(string path)
+    /// <summary>Writes the package to a file, conventionally named <c>*.ovipkg</c>, running <see cref="PackagePublishPipeline.Default"/>.</summary>
+    public void Save(string path) => Save(path, PackagePublishPipeline.Default);
+
+    /// <summary>Writes the package to a file, running <paramref name="pipeline"/> instead of the default publish steps.</summary>
+    public void Save(string path, PackagePublishPipeline pipeline)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(pipeline);
 
         if (Path.GetDirectoryName(path) is { Length: > 0 } directory)
         {
@@ -113,6 +121,6 @@ public sealed class OviPackageBuilder
         }
 
         using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
-        Save(stream);
+        Save(stream, pipeline);
     }
 }

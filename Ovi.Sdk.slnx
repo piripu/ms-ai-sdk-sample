@@ -11,4 +11,8 @@
   <Folder Name="/tests/">
     <Project Path="tests/Ovi.Sdk.Tests/Ovi.Sdk.Tests.csproj" />
   </Folder>
+  <Folder Name="/runtime/">
+    <Project Path="runtime/Ovi.Runtime.Host/Ovi.Runtime.Host.csproj" />
+    <Project Path="runtime/tests/Ovi.Runtime.Host.Tests/Ovi.Runtime.Host.Tests.csproj" />
+  </Folder>
 </Solution>

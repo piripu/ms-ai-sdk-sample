@@ -212,6 +212,19 @@ public class AgentNodeTests
         Assert.Equal(2, chat.ChatHistory.Count); // user turn + assistant turn
     }
 
+    [Fact]
+    public void LastMessage_reflects_the_most_recent_history_entry()
+    {
+        var feature = new AgentChatFeature(FakeChatClient.RespondingWith("unused"));
+        Assert.Null(feature.LastMessage);
+
+        feature.ChatHistory.Add(new ChatMessage(ChatRole.User, "Hi"));
+        Assert.Equal("Hi", feature.LastMessage!.Text);
+
+        feature.ChatHistory.Add(new ChatMessage(ChatRole.Assistant, "Hello!"));
+        Assert.Equal("Hello!", feature.LastMessage!.Text);
+    }
+
     private sealed class ThrowingChatClient(Exception exception) : IChatClient
     {
         public Task<ChatResponse> GetResponseAsync(

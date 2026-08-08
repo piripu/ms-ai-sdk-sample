@@ -19,6 +19,7 @@ ships.
 | `Ovi.Sdk.Packaging` | The `.ovipkg` format: a zip with a `manifest.json`, carrying nodes/agents/tools/triggers. Authoring (`OviPackageBuilder`) and reading (`OviPackage`). |
 | `Ovi.Sdk.Scripting` | `PythonScriptNode` — a node whose behavior is a Python script (`def run(input, context)`). Contracts + the `IPythonScriptEngine` seam; execution engines come with the runtime ([design plan](docs/python-script-execution.md)). |
 | `Ovi.Sdk.Workflows` | The declarative n8n-style workflow model: node instances + the connections between them (`WorkflowDefinition`, YAML/JSON), with graph validation and analysis (`WorkflowGraph`: entry nodes, execution order). Definitions only — no execution engine ([format spec](docs/workflow-definitions.md)). |
+| `Ovi.Runtime.Host` (`runtime/`) | The first runtime package: `WorkflowHost`, a single-workflow-or-agent host unifying manual/webhook/schedule triggers behind one `RunAsync` entry point, with a middleware pipeline, adaptive/per-node timeouts, and `HostProcessManager` for graceful shutdown ([design doc](docs/runtime-host.md)). |
 
 Dependency layering (arrows = "references"):
 
@@ -28,6 +29,8 @@ Tools ──▶ Nodes ◀── Triggers
   └── Agents ──┘         Packaging ──▶ Nodes
                          Scripting ──▶ Nodes
                          Workflows ──▶ Nodes
+
+Ovi.Runtime.Host ──▶ Nodes, Agents, Triggers, Workflows, Packaging
 ```
 
 ## Core concepts
@@ -250,7 +253,11 @@ var yaml = package.ReadAllText("agents/researcher.yaml");
 ```
 
 Loading packages into a live runtime is deliberately out of scope here — this SDK owns the
-contracts; the runtime comes later.
+contracts. `OviPackageManifest.Dependencies` declares (without vendoring) other packages a package
+needs, wheel-style, and `OviPackageResolver` resolves them lazily against an `IPackageSource`; see
+[docs/packaging.md](docs/packaging.md#dependencies). Publishing itself is a `PackagePublishPipeline`
+now, an extension point for future capabilities like signing — see
+[docs/packaging.md](docs/packaging.md#the-publish-pipeline).
 
 ### Workflows
 
@@ -303,6 +310,8 @@ documented follow-ups. Full format spec: [`docs/workflow-definitions.md`](docs/w
   (nodes + connections), validation rules, and graph-analysis API.
 - [`docs/python-script-execution.md`](docs/python-script-execution.md) — the deferred Python
   execution-engine plan.
+- [`docs/runtime-host.md`](docs/runtime-host.md) — `Ovi.Runtime.Host`: the single-workflow host,
+  its request/response shape, middleware pipeline, timeouts, triggers, and process lifecycle.
 - [`AGENT.md`](AGENT.md) — grounding instructions for AI agents working on this repository
   (`CLAUDE.md` points there).
 
@@ -313,16 +322,20 @@ dotnet build
 dotnet test
 ```
 
-Requires the .NET 10 SDK (see `global.json`). The test suite (166 tests) doubles as usage
-documentation for every area above.
+Requires the .NET 10 SDK (see `global.json`). The combined test suites (`tests/Ovi.Sdk.Tests` +
+`runtime/tests/Ovi.Runtime.Host.Tests`) double as usage documentation for every area above.
 
 ## Deliberately deferred
 
-- **Runtime execution**: binding a workflow's node ids to runnable `INode`s, scheduling the
-  execution order, passing data along edges, node wiring, package loading/activation. (The workflow
-  *definition* and graph analysis ship now in `Ovi.Sdk.Workflows`.)
+- **Fan-in workflows**: `WorkflowHost` rejects nodes with more than one upstream connection at build
+  time rather than guessing a merge policy — `Ovi.Sdk.Workflows` connections have no defined
+  fan-in/output-port semantics yet (see the next bullet).
 - **Workflow shape follow-ups**: output ports/branching, loops (the v1 model is DAG-only), and
   sub-workflows as nodes — all additive to the current definition format.
 - **MCP tools**: arrive via `Tool.FromAIFunction` once an MCP client is wired in.
 - **Agent memory**: lands on `AgentWorkflowExecutionContext` next to chat history.
 - **`MultipartHttpChatClient` response contract**: `ParseResponse`, streaming, binary parts.
+- **Script engines, state persistence, package registries beyond a local directory**: the seams
+  exist (`IPythonScriptEngine`, `IStateStore`, `IPackageSource`); implementations don't yet.
+- **Publish-pipeline signing/content hashing**: the pipeline's extension point exists
+  (`PackagePublishPipeline`); no hash/signing scheme has been chosen yet.

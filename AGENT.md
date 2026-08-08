@@ -27,16 +27,20 @@ and add `~/.dotnet` to `PATH`.
 | `src/Ovi.Sdk.Packaging` | `.ovipkg` format (zip + `manifest.json`) | none |
 | `src/Ovi.Sdk.Workflows` | Declarative n8n-style workflow model: `WorkflowDefinition` (YAML/JSON), `WorkflowGraph` validation + analysis (DAG, entry nodes, execution order). Definitions only | YamlDotNet |
 | `src/Shared` | Shared-source compiled `internal` into multiple packages (`YamlJsonBridge`, namespace `Ovi.Sdk.Internal`; linked into Agents + Workflows) | — |
-| `tests/Ovi.Sdk.Tests` | One suite for everything; doubles as usage documentation | xunit |
+| `runtime/Ovi.Runtime.Host` | The first runtime implementation: `WorkflowHost` (single-workflow host, no entry point, no `id` param), `RunRequest`/`RunResult`, the run/node middleware pipeline, `IRunTimeoutPolicy` (adaptive + fixed), `ITriggerStrategy` (`ScheduleTriggerStrategy`), `HostProcessManager`. See [docs/runtime-host.md](docs/runtime-host.md) | (all of the above `Ovi.Sdk.*` projects) |
+| `tests/Ovi.Sdk.Tests` | One suite for the SDK; doubles as usage documentation | xunit |
+| `runtime/tests/Ovi.Runtime.Host.Tests` | One suite for the runtime host, same conventions as the SDK suite | xunit |
 | `schemas/`, `samples/` | Agent- and workflow-definition JSON Schemas + working YAML/JSON samples | — |
 
 ## Rules that must hold (tests enforce several of them)
 
-1. **SDK ships contracts, not runtime implementations.** No schedulers, script engines, state
-   persistence, or package loading in `Ovi.Sdk.*` — those belong to the future runtime
-   (`Ovi.Runtime.*`). Deliberate incompleteness is a feature: `MultipartHttpChatClient.ParseResponse`
-   and `IPythonScriptEngine` stay unimplemented until their wire contracts are decided. Do not
-   "finish" them.
+1. **`Ovi.Sdk.*` ships contracts, not runtime implementations.** No schedulers, script engines,
+   state persistence, or package loading in `Ovi.Sdk.*` — those belong to `Ovi.Runtime.*`
+   (`runtime/`, e.g. `Ovi.Runtime.Host`), which is real now, not purely "future" — but still nowhere
+   near complete (no script engine, no persisted state store, no package registry beyond a local
+   directory). Deliberate incompleteness is a feature: `MultipartHttpChatClient.ParseResponse`,
+   `IPythonScriptEngine`, and the runtime host's publish-pipeline signing/hashing steps stay
+   unimplemented until their wire contracts are decided. Do not "finish" them.
 2. **`Ovi.Sdk.Nodes` references only `Microsoft.Extensions.*.Abstractions` packages** (today:
    Logging.Abstractions). Never an implementation package, never a third-party dependency — it is
    the de-facto abstractions package.

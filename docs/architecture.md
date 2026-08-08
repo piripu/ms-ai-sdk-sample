@@ -4,18 +4,18 @@ The Ovi SDK defines what a **workflow node** is — its identity, its execution 
 ships — and what a **workflow** is — the declarative graph of node instances and their connections —
 without shipping a workflow *engine*. A workflow contains individual nodes and defines how they
 connect; the SDK can parse, validate, and analyze that graph, but *running* it (binding ids to
-instances, scheduling, passing data along edges) is the job of a future runtime built on these
-contracts.
+instances, scheduling, passing data along edges) is the job of the runtime built on these contracts.
 
 ## The two-layer picture
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Ovi.Runtime.* (future)                                    │
-│  graph model · scheduler · script engines · persistence ·  │
-│  package loading · chat-client wiring                      │
+│  Ovi.Runtime.* (runtime/ — implementations)                │
+│  Ovi.Runtime.Host: single-workflow host, middleware,       │
+│  triggers, timeouts, process lifecycle. Still to come:     │
+│  script engines · persistence · package loading            │
 ├────────────────────────────────────────────────────────────┤
-│  Ovi.Sdk.* (this repo — contracts + authoring)             │
+│  Ovi.Sdk.* (src/ — contracts + authoring)                  │
 │                                                            │
 │  Tools ──▶ Nodes ◀── Triggers        Packaging ──▶ Nodes   │
 │    ▲         ▲                       Scripting ──▶ Nodes   │
@@ -23,12 +23,16 @@ contracts.
 └────────────────────────────────────────────────────────────┘
 ```
 
-The SDK/runtime boundary **is** the abstractions boundary. There is deliberately no
-`Ovi.Sdk.Abstractions` package: `Ovi.Sdk.Nodes` plays that role (zero dependencies, contracts plus
-the in-memory defaults needed for atomic testing), and every implementation-shaped concern —
-schedulers, engines, persistence, loading, *and workflow execution* — lands in future runtime
-packages rather than here. `Ovi.Sdk.Workflows` is the one place the SDK reasons about a graph of
-nodes rather than a single node, but it stops at analysis: it never runs anything.
+The SDK/runtime boundary **is** the abstractions boundary — that boundary is about `Ovi.Sdk.Nodes`
+specifically, not about which folder code lives in. There is deliberately no `Ovi.Sdk.Abstractions`
+package: `Ovi.Sdk.Nodes` plays that role (zero dependencies, contracts plus the in-memory defaults
+needed for atomic testing), and every implementation-shaped concern — schedulers, engines,
+persistence, loading, *and workflow execution* — lands in `Ovi.Runtime.*` rather than in
+`Ovi.Sdk.*`. `Ovi.Sdk.Workflows` is the one place the SDK reasons about a graph of nodes rather than
+a single node, but it stops at analysis: it never runs anything. `Ovi.Runtime.Host` (see
+[runtime-host.md](runtime-host.md)) is the first package that does — its own dependency policy is
+deliberately looser than `Ovi.Sdk.Nodes`' abstractions-only rule below, because it's an
+implementation, not the abstractions boundary itself.
 
 ### Dependency policy
 
